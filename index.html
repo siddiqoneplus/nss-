@@ -445,6 +445,21 @@
             display: flex; gap: 0.75rem;
             justify-content: flex-end;
         }
+        .modal-footer-space {
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .modal-footer-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-left: auto;
+        }
+        .btn-sm-padded {
+            padding: 0.5rem 1rem;
+        }
         .btn-cancel {
             padding: 0.65rem 1.25rem;
             background: rgba(255,255,255,0.06);
@@ -760,9 +775,9 @@
                 </div>
             </div>
         </div>
-        <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:0.5rem;flex-wrap:wrap">
+        <div class="modal-footer modal-footer-space">
             <button class="btn-sm-action btn-sm-preset" id="btnCopyLiveAtt" onclick="copyCurrentModalAbsentees()">📋 Copy Absentees</button>
-            <div style="display:flex;gap:0.5rem;margin-left:auto">
+            <div class="modal-footer-actions">
                 <button class="btn-cancel" id="btnCancelAtt" onclick="closeModal('attendanceModal')">Cancel</button>
                 <button class="btn-submit" id="btnSubmitAtt" disabled>Submit Attendance</button>
             </div>
@@ -778,8 +793,8 @@
             <button class="modal-close" onclick="closeModal('empAttDetailModal')">&times;</button>
         </div>
         <div class="modal-body" id="empAttDetailBody"></div>
-        <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">
-            <button class="btn-sm-action btn-sm-preset" style="padding:0.5rem 1rem" onclick="copyEmpAttendance(currentEmpDetailRecord)">📋 Copy Absentees</button>
+        <div class="modal-footer modal-footer-space">
+            <button class="btn-sm-action btn-sm-preset btn-sm-padded" onclick="copyEmpAttendance(currentEmpDetailRecord)">📋 Copy Absentees</button>
             <button class="btn-cancel" onclick="closeModal('empAttDetailModal')">Close</button>
         </div>
     </div>
