@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      # Pass MONGO_URI and JWT_SECRET from environment or .env file
+    env_file:
+      - .env
+    restart: always
