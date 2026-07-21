@@ -1,0 +1,2802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="NSS Admin Dashboard — Full control over attendance, classes, and employees.">
+    <title>Admin — NSS Attendance</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-mid: #1e293b;
+            --bg-card: rgba(255,255,255,0.04);
+            --glass-border: rgba(255,255,255,0.08);
+            --glass-hover: rgba(255,255,255,0.06);
+            --primary: #6366f1;
+            --primary-glow: rgba(99,102,241,0.3);
+            --accent: #8b5cf6;
+            --success: #10b981;
+            --success-bg: rgba(16,185,129,0.12);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245,158,11,0.12);
+            --danger: #ef4444;
+            --danger-bg: rgba(239,68,68,0.12);
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --sidebar-w: 240px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(160deg, var(--bg-dark), #111827);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: rgba(15,23,42,0.9);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            z-index: 50;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex; align-items: center; gap: 0.6rem;
+        }
+        .sidebar-header .logo-icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+        }
+        .sidebar-header .logo-text {
+            font-size: 1rem; font-weight: 800;
+        }
+        .sidebar-header .badge {
+            background: var(--primary-glow);
+            color: var(--primary);
+            font-size: 0.65rem;
+            padding: 0.12rem 0.4rem;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 0.7rem;
+            padding: 0.7rem 0.85rem;
+            border-radius: 10px;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-family: inherit;
+        }
+        .nav-item:hover { background: var(--glass-hover); color: var(--text); }
+        .nav-item.active {
+            background: var(--primary-glow);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        .nav-item .icon { font-size: 1.1rem; width: 24px; text-align: center; }
+
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid var(--glass-border);
+        }
+        .btn-logout {
+            width: 100%;
+            padding: 0.6rem;
+            background: var(--danger-bg);
+            border: 1px solid rgba(239,68,68,0.2);
+            color: #fca5a5;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-logout:hover { background: rgba(239,68,68,0.2); color: #fff; }
+
+        /* ─── Main Content ─── */
+        .main-content {
+            margin-left: var(--sidebar-w);
+            flex: 1;
+            padding: 1.5rem 2rem;
+            min-height: 100vh;
+        }
+
+        .page-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+        .page-header h1 {
+            font-size: 1.5rem; font-weight: 800;
+        }
+        .page-header .date-text {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+
+        /* Tab panels */
+        .tab-panel { display: none; animation: fadeIn 0.4s ease; }
+        .tab-panel.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── Cards ─── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            transition: all 0.3s;
+            animation: fadeIn 0.5s ease backwards;
+        }
+        .stat-card:hover {
+            border-color: rgba(99,102,241,0.2);
+            transform: translateY(-2px);
+        }
+        .stat-card .stat-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .stat-card .stat-value {
+            font-size: 2rem; font-weight: 800;
+            line-height: 1;
+        }
+        .stat-card .stat-label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-top: 0.25rem;
+        }
+
+        /* ─── Data Table ─── */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        .table-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .table-header h3 { font-size: 1rem; font-weight: 700; }
+
+        .btn-primary {
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: #fff; border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px var(--primary-glow);
+        }
+
+        .btn-sm {
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-family: inherit;
+        }
+        .btn-edit {
+            background: rgba(99,102,241,0.15);
+            color: var(--primary);
+        }
+        .btn-edit:hover { background: rgba(99,102,241,0.25); }
+        .btn-delete {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+        .btn-delete:hover { background: rgba(239,68,68,0.25); }
+        .btn-assign {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+        .btn-assign:hover { background: rgba(16,185,129,0.25); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        thead th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        tbody td {
+            padding: 0.75rem 1rem;
+            font-size: 0.88rem;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
+        tbody tr:last-child td { border-bottom: none; }
+
+        .chip {
+            display: inline-block;
+            padding: 0.2rem 0.55rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .chip-admin { background: rgba(99,102,241,0.15); color: var(--primary); }
+        .chip-employee { background: rgba(16,185,129,0.12); color: var(--success); }
+        .chip-class {
+            background: rgba(139,92,246,0.12);
+            color: var(--accent);
+            margin: 0.1rem;
+        }
+
+        .actions { display: flex; gap: 0.4rem; }
+
+        /* ─── Modal (reusable) ─── */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6);
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-mid);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 520px;
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: modalIn 0.3s cubic-bezier(0.16,1,0.3,1);
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.92) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-header {
+            padding: 1.15rem 1.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 1.05rem; font-weight: 700; }
+        .modal-close {
+            background: none; border: none;
+            color: var(--text-muted); font-size: 1.3rem;
+            cursor: pointer; transition: color 0.2s;
+        }
+        .modal-close:hover { color: var(--text); }
+        .modal-body { padding: 1.5rem; }
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--glass-border);
+            display: flex; gap: 0.75rem; justify-content: flex-end;
+        }
+
+        .field-group { margin-bottom: 1rem; }
+        .field-group label {
+            display: block;
+            font-size: 0.78rem; font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.4rem;
+        }
+        .field-input, .field-select {
+            width: 100%;
+            padding: 0.7rem 0.9rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .field-input:focus, .field-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+        .field-select option { background: var(--bg-mid); color: var(--text); }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+        .btn-cancel {
+            padding: 0.6rem 1.2rem;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            border-radius: 10px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .btn-cancel:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+        .btn-save {
+            padding: 0.6rem 1.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: #fff; border: none;
+            border-radius: 10px;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px var(--primary-glow);
+        }
+
+        /* Multi-select checkboxes for class assignment */
+        .checkbox-grid {
+            display: flex; flex-direction: column; gap: 0.4rem;
+            max-height: 200px; overflow-y: auto;
+            border: 1px solid var(--glass-border);
+            border-radius: 10px; padding: 0.5rem;
+        }
+        .checkbox-item {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .checkbox-item:hover { background: rgba(255,255,255,0.04); }
+        .checkbox-item input { accent-color: var(--primary); width: 16px; height: 16px; cursor: pointer; }
+        .checkbox-item span { font-size: 0.88rem; }
+
+        /* ─── Attendance filter bar ─── */
+        .filter-bar {
+            display: flex; gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+            align-items: flex-end;
+        }
+        .filter-bar .field-group { margin-bottom: 0; }
+        .filter-bar .field-input, .filter-bar .field-select {
+            padding: 0.55rem 0.8rem;
+            font-size: 0.85rem;
+        }
+        .btn-filter {
+            padding: 0.55rem 1rem;
+            background: var(--primary);
+            color: #fff; border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            height: fit-content;
+        }
+
+        /* ─── Student textarea for class modal ─── */
+        .student-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 0.7rem 0.9rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: 'Inter', monospace;
+            font-size: 0.85rem;
+            outline: none;
+            resize: vertical;
+        }
+        .student-textarea:focus {
+            border-color: var(--primary);
+        }
+        .help-text {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 0.3rem;
+        }
+
+        /* ─── Employee Stats Cards ─── */
+        .emp-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .emp-stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1.1rem;
+            transition: all 0.3s;
+        }
+        .emp-stat-card:hover { border-color: rgba(99,102,241,0.2); }
+        .emp-stat-card .emp-name {
+            font-weight: 700; font-size: 0.95rem;
+            margin-bottom: 0.35rem;
+        }
+        .emp-stat-card .emp-classes {
+            color: var(--text-muted); font-size: 0.78rem;
+            margin-bottom: 0.6rem;
+        }
+        .emp-progress {
+            height: 6px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 0.35rem;
+        }
+        .emp-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        .emp-stat-card .emp-stat-text {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+        }
+        .emp-stat-card .emp-stat-text strong { color: var(--text); }
+
+        /* ─── Trend Chart ─── */
+        .trend-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .trend-card h3 {
+            font-size: 0.95rem; font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        .chart-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+            height: 120px;
+        }
+        .chart-bar-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .chart-bar {
+            width: 100%;
+            max-width: 40px;
+            background: linear-gradient(180deg, var(--primary), var(--accent));
+            border-radius: 6px 6px 2px 2px;
+            min-height: 4px;
+            transition: height 0.5s ease;
+        }
+        .chart-label {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            text-align: center;
+        }
+        .chart-value {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        /* ─── Attendance View Modal ─── */
+        .att-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        .att-detail-item {
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+        .att-present { background: var(--success-bg); color: var(--success); }
+        .att-absent { background: var(--danger-bg); color: var(--danger); }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem; right: 2rem;
+            padding: 0.85rem 1.5rem;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            z-index: 300;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { background: var(--success-bg); border: 1px solid rgba(16,185,129,0.3); color: var(--success); }
+        .toast.error { background: var(--danger-bg); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+
+        /* ─── Mobile Sidebar ─── */
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 0.75rem; left: 0.75rem;
+            z-index: 60;
+            background: var(--bg-mid);
+            border: 1px solid var(--glass-border);
+            color: var(--text);
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+        /* ─── Table Cards Touch Scroll ─── */
+        .table-card {
+            overflow-x: auto;
+        }
+
+        .modal-overlay {
+            padding: 1rem;
+        }
+
+        .modal {
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .mobile-toggle { display: flex; align-items: center; justify-content: center; }
+            .main-content { margin-left: 0; padding: 1rem; padding-top: 4rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+            .emp-stats-grid { grid-template-columns: 1fr; }
+            .filter-bar { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+            .field-row { grid-template-columns: 1fr; gap: 0.75rem; }
+            .table-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+            .flex-gap-sm { width: 100%; justify-content: flex-start; }
+            .btn-filter, .btn-primary { width: 100%; text-align: center; justify-content: center; }
+            .tt-controls { flex-direction: column; align-items: stretch; }
+            .subject-palette { width: 100%; }
+            table { min-width: 640px; }
+            .page-header { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .stat-card { padding: 0.85rem 1rem; }
+            .page-header h1 { font-size: 1.25rem; }
+            .modal { padding: 1.25rem; border-radius: 16px; }
+            .toast { bottom: 1rem; right: 1rem; left: 1rem; text-align: center; }
+        }
+
+        .emp-stats-container { padding: 1rem; }
+        .modal-narrow { max-width: 480px; }
+
+        /* ─── Timetable Builder ─── */
+        .tt-controls {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+            align-items: flex-end;
+        }
+        .tt-controls .field-group { margin-bottom: 0; }
+
+        .subject-palette {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1rem;
+            margin-bottom: 1.25rem;
+        }
+        .subject-palette h4 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+        .palette-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .palette-chip {
+            padding: 0.4rem 0.85rem;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: grab;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .palette-chip:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .palette-chip:active { cursor: grabbing; }
+        .palette-chip.dragging { opacity: 0.5; transform: scale(0.9); }
+
+        .add-subject-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .add-subject-row input {
+            flex: 1;
+            padding: 0.45rem 0.7rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        .add-subject-row input:focus { border-color: var(--primary); }
+        .add-subject-row button {
+            padding: 0.45rem 0.8rem;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .tt-grid-wrapper {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            overflow-x: auto;
+            margin-bottom: 1.25rem;
+        }
+        .tt-grid {
+            display: grid;
+            grid-template-columns: 70px repeat(7, 1fr);
+            min-width: 700px;
+        }
+        .tt-cell {
+            border: 1px solid rgba(255,255,255,0.04);
+            padding: 0.5rem;
+            min-height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .tt-cell-header {
+            background: rgba(255,255,255,0.03);
+            font-weight: 700;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .tt-cell-day {
+            background: rgba(99,102,241,0.06);
+            font-weight: 700;
+            font-size: 0.82rem;
+            color: var(--primary);
+        }
+        .tt-cell-slot {
+            cursor: pointer;
+            border: 1px dashed rgba(255,255,255,0.08);
+        }
+        .tt-cell-slot:hover {
+            background: rgba(255,255,255,0.04);
+            border-color: rgba(99,102,241,0.3);
+        }
+        .tt-cell-slot.drag-over {
+            background: rgba(99,102,241,0.12);
+            border-color: var(--primary);
+            border-style: solid;
+            box-shadow: inset 0 0 12px rgba(99,102,241,0.2);
+        }
+        .tt-cell-slot.filled {
+            border-style: solid;
+            border-color: transparent;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.78rem;
+            cursor: default;
+        }
+        .tt-cell-slot.filled .tt-remove {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            width: 16px;
+            height: 16px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 50%;
+            color: #fff;
+            font-size: 0.6rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            line-height: 1;
+        }
+        .tt-cell-slot.filled:hover .tt-remove { display: flex; }
+
+        .tt-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .semester-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .semester-item {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 0.85rem 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+        }
+        .semester-item:hover { border-color: rgba(99,102,241,0.2); }
+        .semester-item .sem-info { display: flex; flex-direction: column; gap: 0.15rem; }
+        .semester-item .sem-name { font-weight: 700; font-size: 0.92rem; }
+        .semester-item .sem-dates { color: var(--text-dim); font-size: 0.78rem; }
+        .semester-item .sem-actions { display: flex; gap: 0.4rem; align-items: center; }
+        .chip-active {
+            background: var(--success-bg);
+            color: var(--success);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+        .btn-activate {
+            background: rgba(99,102,241,0.15);
+            color: var(--primary);
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .btn-activate:hover { background: rgba(99,102,241,0.25); }
+        .btn-warning { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .btn-warning:hover { background: rgba(245,158,11,0.28); }
+
+        @media (max-width: 768px) {
+            .tt-controls { flex-direction: column; }
+        }
+
+        /* ─── Alert Cards ─── */
+        .alert-card {
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s;
+        }
+        .alert-card:hover { transform: translateX(3px); }
+        .alert-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .alert-card-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .alert-card-title strong { font-size: 0.95rem; }
+        .alert-card-actions {
+            display: flex;
+            gap: 0.4rem;
+        }
+        .alert-card-body {
+            margin-top: 0.5rem;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        .alert-card-meta {
+            margin-top: 0.6rem;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .alert-expiry {
+            background: rgba(245,158,11,0.1);
+            color: var(--warning);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        textarea.field-input {
+            resize: vertical;
+            min-height: 3.5rem;
+            line-height: 1.5;
+        }
+
+        /* ─── Layout & Utility Classes ─── */
+        .flex-gap-sm { display: flex; gap: 0.5rem; }
+        .btn-preset { background: var(--primary-glow); color: var(--primary); border: 1px solid rgba(99,102,241,0.3); }
+        .btn-clear { background: var(--bg-mid); color: var(--text-muted); border: 1px solid var(--glass-border); }
+        .card-padding-lg { padding: 1.25rem; }
+        .flex-2 { flex: 2; }
+        .mt-sm { margin-top: 0.75rem; }
+        .field-row-end { margin-top: 0.75rem; align-items: flex-end; }
+        .mt-md { margin-top: 1.5rem; }
+        .container-padding-sm { padding: 0.75rem; }
+        .text-empty-state { color: var(--text-dim); padding: 1rem; text-align: center; }
+        .roster-scroll-grid { max-height: 260px; overflow-y: auto; margin-top: 0.5rem; }
+        .flex-between-center { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+        .text-author { color: var(--text-dim); font-size: 0.82rem; margin-left: 0.5rem; }
+
+        .ov-chip {
+            display: inline-block;
+            padding: 0.2rem 0.55rem;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .ov-cancel { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .ov-add { background: var(--success-bg); color: var(--success); }
+        .ov-replace { background: rgba(251,191,36,0.15); color: #fbbf24; }
+        .ov-override-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(251,191,36,0.15);
+            color: #fbbf24;
+            padding: 0.15rem 0.55rem;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            font-weight: 700;
+        }
+        .mb-md { margin-bottom: 1rem; }
+        .hidden { display: none !important; }
+        .btn-align-end { align-self: flex-end; }
+        .section-subheading { margin: 1rem 0 0.5rem; color: var(--text-muted); }
+        .cell-truncate { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+        .table-empty-padding { padding: 1.5rem; text-align: center; color: var(--text-dim); }
+        .text-success { color: var(--success); font-weight: 600; }
+        .text-danger { color: #fca5a5; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<button class="mobile-toggle" id="mobileToggle">☰</button>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="logo-icon">📋</div>
+        <div>
+            <div class="logo-text">NSS Attendance</div>
+            <span class="badge">Admin</span>
+        </div>
+    </div>
+    <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="dashboard"><span class="icon">📊</span>Dashboard</button>
+        <button class="nav-item" data-tab="classes"><span class="icon">🏫</span>Classes</button>
+        <button class="nav-item" data-tab="timetable"><span class="icon">📅</span>Timetable</button>
+        <button class="nav-item" data-tab="employees"><span class="icon">👥</span>Employees</button>
+        <button class="nav-item" data-tab="attendance"><span class="icon">📝</span>Attendance</button>
+        <button class="nav-item" data-tab="reports"><span class="icon">📈</span>Reports</button>
+        <button class="nav-item" data-tab="alerts"><span class="icon">🔔</span>Alerts</button>
+    </nav>
+    <div class="sidebar-footer">
+        <button class="btn-logout" id="logoutBtn">🚪 Logout</button>
+    </div>
+</aside>
+
+<!-- Main -->
+<div class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 id="pageTitle">Dashboard</h1>
+            <div class="date-text" id="headerDate"></div>
+        </div>
+    </div>
+
+    <!-- ═══ DASHBOARD TAB ═══ -->
+    <div class="tab-panel active" id="tab-dashboard">
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="trend-card">
+            <h3>📈 7-Day Attendance Trend</h3>
+            <div class="chart-bars" id="trendChart"></div>
+        </div>
+        <div class="table-card">
+            <div class="table-header">
+                <h3>👥 Employee Performance — Today</h3>
+            </div>
+            <div class="emp-stats-grid emp-stats-container" id="empStatsGrid"></div>
+        </div>
+    </div>
+
+    <!-- ═══ CLASSES TAB ═══ -->
+    <div class="tab-panel" id="tab-classes">
+        <div class="table-card">
+            <div class="table-header">
+                <h3>All Classes</h3>
+                <div class="flex-gap-sm">
+                    <button class="btn-primary" onclick="openClassModal()">+ Add Class</button>
+                    <button class="btn-filter btn-preset" onclick="quickAddClasses()">⚡ Quick Add Presets</button>
+                </div>
+            </div>
+            <table>
+                <thead><tr><th>Name</th><th>Department</th><th>Year</th><th>Section</th><th>Students</th><th>Actions</th></tr></thead>
+                <tbody id="classesTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══ EMPLOYEES TAB ═══ -->
+    <div class="tab-panel" id="tab-employees">
+        <div class="table-card">
+            <div class="table-header">
+                <h3>All Employees</h3>
+                <button class="btn-primary" onclick="openUserModal()">+ Add Employee</button>
+            </div>
+            <table>
+                <thead><tr><th>Username</th><th>Display Name</th><th>Role</th><th>Assigned Classes</th><th>Actions</th></tr></thead>
+                <tbody id="employeesTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══ TIMETABLE TAB ═══ -->
+    <div class="tab-panel" id="tab-timetable">
+        <!-- Semester Manager -->
+        <div class="table-card">
+            <div class="table-header">
+                <h3>📅 Semesters</h3>
+                <button class="btn-primary" onclick="openSemesterModal()">+ New Semester</button>
+            </div>
+            <div class="semester-list" id="semesterList"></div>
+        </div>
+
+        <!-- Timetable Builder -->
+        <div class="table-card">
+            <div class="table-header">
+                <h3>📋 Timetable Builder</h3>
+            </div>
+            <div class="modal-body">
+                <div class="tt-controls">
+                    <div class="field-group">
+                        <label>Semester</label>
+                        <select id="ttSemester" class="field-select" onchange="loadTimetable()"></select>
+                    </div>
+                    <div class="field-group">
+                        <label>Class</label>
+                        <select id="ttClass" class="field-select" onchange="loadTimetable()"></select>
+                    </div>
+                    <button class="btn-primary" onclick="cloneSemesterTimetables()">📋 Clone to...</button>
+                </div>
+
+                <!-- Subject Palette -->
+                <div class="subject-palette">
+                    <h4>SUBJECT PALETTE — Drag subjects onto the grid</h4>
+                    <div class="palette-chips" id="paletteChips"></div>
+                    <div class="add-subject-row">
+                        <input type="text" id="newSubjectInput" placeholder="Type a subject name...">
+                        <button onclick="addSubjectToPalette()">+ Add</button>
+                    </div>
+                </div>
+
+                <!-- Weekly Grid -->
+                <div class="tt-grid-wrapper">
+                    <div class="tt-grid" id="ttGrid"></div>
+                </div>
+
+                <div class="tt-actions">
+                    <button class="btn-save" onclick="saveTimetable()">💾 Save Timetable</button>
+                    <button class="btn-cancel" onclick="clearTimetableGrid()">🗑️ Clear All</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Override Manager -->
+        <div class="table-card">
+            <div class="table-header">
+                <h3>⚡ Date-Specific Overrides</h3>
+            </div>
+            <div class="card-padding-lg">
+                <div class="filter-bar mb-md">
+                    <div class="field-group">
+                        <label>Date</label>
+                        <input type="date" id="ovDate" class="field-input">
+                    </div>
+                    <div class="field-group">
+                        <label>Class</label>
+                        <select id="ovClass" class="field-select"></select>
+                    </div>
+                    <div class="field-group">
+                        <label>Period</label>
+                        <select id="ovPeriod" class="field-select">
+                            <option value="">-- Select --</option>
+                            <option value="1">Period 1</option>
+                            <option value="2">Period 2</option>
+                            <option value="3">Period 3</option>
+                            <option value="4">Period 4</option>
+                            <option value="5">Period 5</option>
+                            <option value="6">Period 6</option>
+                            <option value="7">Period 7</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Override Type</label>
+                        <select id="ovType" class="field-select" onchange="toggleOverrideSubject()">
+                            <option value="cancel">🚫 Cancel Period</option>
+                            <option value="add">➕ Add NSS Period</option>
+                            <option value="replace">🔄 Replace Subject</option>
+                        </select>
+                    </div>
+                    <div class="field-group hidden" id="ovSubjectGroup">
+                        <label>New Subject</label>
+                        <select id="ovNewSubject" class="field-select">
+                            <option value="NSS">NSS</option>
+                            <option value="FREE">FREE</option>
+                        </select>
+                    </div>
+                    <div class="field-group flex-2">
+                        <label>Reason (optional)</label>
+                        <input type="text" id="ovReason" class="field-input" placeholder="e.g. College fest, half-day...">
+                    </div>
+                    <button class="btn-primary btn-align-end" onclick="createOverride()">⚡ Create Override</button>
+                </div>
+
+                <!-- Active Overrides List -->
+                <h4 class="section-subheading">Active Overrides</h4>
+                <div class="table-scroll-container">
+                    <table>
+                        <thead><tr><th>Date</th><th>Class</th><th>Period</th><th>Type</th><th>Subject</th><th>Reason</th><th>By</th><th>Actions</th></tr></thead>
+                        <tbody id="overridesTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ ATTENDANCE TAB ═══ -->
+    <div class="tab-panel" id="tab-attendance">
+        <div class="filter-bar">
+            <div class="field-group">
+                <label>Start Date</label>
+                <input type="date" id="attFilterDate" class="field-input">
+            </div>
+            <div class="field-group">
+                <label>End Date (Optional)</label>
+                <input type="date" id="attFilterEndDate" class="field-input">
+            </div>
+            <div class="field-group">
+                <label>Class</label>
+                <select id="attFilterClass" class="field-select">
+                    <option value="">All Classes</option>
+                </select>
+            </div>
+            <button class="btn-filter" onclick="loadAttendance()">Search</button>
+            <button class="btn-filter btn-clear" onclick="clearAttFilter()">Clear</button>
+        </div>
+        <div class="table-card">
+            <div class="table-header"><h3>Attendance Records</h3></div>
+            <table>
+                <thead><tr><th>Date</th><th>Class</th><th>Subject</th><th>Period</th><th>Present</th><th>Absent</th><th>Total</th><th>By</th><th>Actions</th></tr></thead>
+                <tbody id="attendanceTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══ REPORTS TAB ═══ -->
+    <div class="tab-panel" id="tab-reports">
+        <div class="filter-bar">
+            <div class="field-group">
+                <label>Start Date</label>
+                <input type="date" id="repStartDate" class="field-input">
+            </div>
+            <div class="field-group">
+                <label>End Date</label>
+                <input type="date" id="repEndDate" class="field-input">
+            </div>
+            <button class="btn-filter" onclick="loadReports()">Generate</button>
+        </div>
+        <div class="stats-grid" id="reportStats"></div>
+        <div class="table-card">
+            <div class="table-header"><h3>Class-wise Summary</h3></div>
+            <table>
+                <thead><tr><th>Class</th><th>Records</th><th>Avg Present</th><th>Avg Absent</th><th>Avg %</th></tr></thead>
+                <tbody id="reportTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══ ALERTS TAB ═══ -->
+    <div class="tab-panel" id="tab-alerts">
+        <div class="table-card">
+            <div class="table-header">
+                <h3>Compose Alert</h3>
+            </div>
+            <div class="card-padding-lg">
+                <div class="field-row">
+                    <div class="field-group flex-2">
+                        <label>Title</label>
+                        <input type="text" id="alertTitle" class="field-input" placeholder="e.g. NSS Camp Tomorrow">
+                    </div>
+                    <div class="field-group">
+                        <label>Priority</label>
+                        <select id="alertPriority" class="field-select">
+                            <option value="info">🟢 Info</option>
+                            <option value="warning">🟡 Warning</option>
+                            <option value="urgent">🔴 Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-group mt-sm">
+                    <label>Message</label>
+                    <textarea id="alertMessage" class="field-input" rows="3" placeholder="Type your alert message here..."></textarea>
+                </div>
+                <div class="field-row field-row-end">
+                    <div class="field-group">
+                        <label>Expires (optional)</label>
+                        <input type="date" id="alertExpiry" class="field-input">
+                    </div>
+                    <div>
+                        <button class="btn-primary" onclick="sendAlert()">📢 Send Alert</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-card mt-md">
+            <div class="table-header">
+                <h3>All Alerts</h3>
+                <span class="chip chip-class" id="alertCount">0</span>
+            </div>
+            <div id="alertsList" class="container-padding-sm">
+                <p class="text-empty-state">No alerts yet</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ═══ CLASS MODAL ═══ -->
+<div class="modal-overlay" id="classModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="classModalTitle">Add Class</h3>
+            <button class="modal-close" onclick="closeModal('classModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="classEditId">
+            <div class="field-row">
+                <div class="field-group">
+                    <label>Class Name</label>
+                    <input type="text" id="className" class="field-input" placeholder="e.g. II-A CSE">
+                </div>
+                <div class="field-group">
+                    <label>Department</label>
+                    <input type="text" id="classDept" class="field-input" placeholder="e.g. CSE">
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field-group">
+                    <label>Year</label>
+                    <input type="number" id="classYear" class="field-input" value="2" min="1" max="5">
+                </div>
+                <div class="field-group">
+                    <label>Section</label>
+                    <input type="text" id="classSection" class="field-input" placeholder="A" maxlength="2">
+                </div>
+            </div>
+            <div class="field-group">
+                <label>Students (one per line: RollNumber, Name)</label>
+                <textarea class="student-textarea" id="classStudents" placeholder="24A81A4401, John Doe&#10;24A81A4402, Jane Smith"></textarea>
+                <div class="help-text">Format: RollNumber, StudentName (one per line)</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('classModal')">Cancel</button>
+            <button class="btn-save" id="btnSaveClass">Save Class</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ USER MODAL ═══ -->
+<div class="modal-overlay" id="userModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="userModalTitle">Add Employee</h3>
+            <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="userEditId">
+            <div class="field-group">
+                <label>Username</label>
+                <input type="text" id="userUsername" class="field-input" placeholder="e.g. john">
+            </div>
+            <div class="field-group">
+                <label>Display Name</label>
+                <input type="text" id="userDisplayName" class="field-input" placeholder="e.g. John Doe">
+            </div>
+            <div class="field-group">
+                <label>Password</label>
+                <input type="password" id="userPassword" class="field-input" placeholder="Enter password">
+            </div>
+            <div class="field-group">
+                <label>Role</label>
+                <select id="userRole" class="field-select">
+                    <option value="employee">Employee</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('userModal')">Cancel</button>
+            <button class="btn-save" id="btnSaveUser">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ SEMESTER MODAL ═══ -->
+<div class="modal-overlay" id="semesterModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>New Semester</h3>
+            <button class="modal-close" onclick="closeModal('semesterModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="field-group">
+                <label>Semester Name</label>
+                <input type="text" id="semName" class="field-input" placeholder="e.g. Odd Sem 2026">
+            </div>
+            <div class="field-row">
+                <div class="field-group">
+                    <label>Start Date</label>
+                    <input type="date" id="semStart" class="field-input">
+                </div>
+                <div class="field-group">
+                    <label>End Date</label>
+                    <input type="date" id="semEnd" class="field-input">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('semesterModal')">Cancel</button>
+            <button class="btn-save" id="btnSaveSemester">Create Semester</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ CLONE MODAL ═══ -->
+<div class="modal-overlay" id="cloneModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Clone Timetables</h3>
+            <button class="modal-close" onclick="closeModal('cloneModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="field-group">
+                <label>Clone all timetables to</label>
+                <select id="cloneTarget" class="field-select"></select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('cloneModal')">Cancel</button>
+            <button class="btn-save" id="btnClone">Clone</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ ASSIGN CLASSES MODAL ═══ -->
+<div class="modal-overlay" id="assignModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="assignModalTitle">Assign Classes</h3>
+            <button class="modal-close" onclick="closeModal('assignModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="assignUserId">
+            <div class="field-group">
+                <label>Select classes to assign</label>
+                <div class="checkbox-grid" id="assignCheckboxes"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('assignModal')">Cancel</button>
+            <button class="btn-save" id="btnSaveAssign">Save Assignment</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ PASSWORD MODAL ═══ -->
+<div class="modal-overlay" id="passwordModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="passwordModalTitle">Reset Password</h3>
+            <button class="modal-close" onclick="closeModal('passwordModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="passwordUserId">
+            <div class="field-group">
+                <label>New Password</label>
+                <input type="password" id="newPassword" class="field-input" placeholder="Enter new password">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('passwordModal')">Cancel</button>
+            <button class="btn-save" id="btnSavePassword">Update Password</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ ATTENDANCE DETAIL MODAL ═══ -->
+<div class="modal-overlay" id="attDetailModal">
+    <div class="modal modal-narrow">
+        <div class="modal-header">
+            <h3 id="attDetailTitle">Attendance Detail</h3>
+            <button class="modal-close" onclick="closeModal('attDetailModal')">&times;</button>
+        </div>
+        <div class="modal-body" id="attDetailBody"></div>
+    </div>
+</div>
+
+<!-- ═══ EDIT ATTENDANCE MODAL ═══ -->
+<div class="modal-overlay" id="attEditModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="attEditTitle">Edit Attendance</h3>
+            <button class="modal-close" onclick="closeModal('attEditModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editAttId">
+            <div class="field-row">
+                <div class="field-group">
+                    <label>Subject</label>
+                    <select id="editAttSubject" class="field-select">
+                        <option value="NSS">NSS</option>
+                        <option value="FREE">FREE</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label>Period</label>
+                    <select id="editAttPeriod" class="field-select">
+                        <option value="1">Period 1</option>
+                        <option value="2">Period 2</option>
+                        <option value="3">Period 3</option>
+                        <option value="4">Period 4</option>
+                        <option value="5">Period 5</option>
+                        <option value="6">Period 6</option>
+                        <option value="7">Period 7</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-group mt-sm">
+                <label>Student Roster Status (Click student to toggle Present/Absent)</label>
+                <div id="editAttRosterGrid" class="att-detail-grid roster-scroll-grid"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('attEditModal')">Cancel</button>
+            <button class="btn-save" onclick="saveAttendanceEdit()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const TOKEN = localStorage.getItem('nss_token');
+const ROLE = localStorage.getItem('nss_role');
+const USERNAME = localStorage.getItem('nss_username');
+
+if (!TOKEN || ROLE !== 'admin') {
+    window.location.href = !TOKEN ? 'login.html' : 'index.html';
+}
+
+const headers = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` });
+
+// Socket
+const socket = io();
+socket.emit('register', USERNAME);
+socket.on('attendance_posted', () => { loadDashboard(); loadAttendance(); });
+socket.on('attendance_deleted', () => { loadDashboard(); loadAttendance(); });
+
+// ─── Data cache ───
+let allClasses = [];
+let allUsers = [];
+
+// ─── Init ───
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+    document.getElementById('attFilterDate').value = todayStr();
+
+    // Nav
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            item.classList.add('active');
+            const tab = item.dataset.tab;
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            document.getElementById('pageTitle').textContent = item.textContent.trim();
+            onTabChange(tab);
+
+            // Close mobile sidebar
+            document.getElementById('sidebar').classList.remove('open');
+        });
+    });
+
+    // Mobile toggle
+    document.getElementById('mobileToggle').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('open');
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.clear();
+        window.location.href = 'login.html';
+    });
+
+    // Modal event bindings
+    document.getElementById('btnSaveClass').addEventListener('click', saveClass);
+    document.getElementById('btnSaveUser').addEventListener('click', saveUser);
+    document.getElementById('btnSaveAssign').addEventListener('click', saveAssignment);
+    document.getElementById('btnSavePassword').addEventListener('click', savePassword);
+    document.getElementById('btnSaveSemester').addEventListener('click', submitSemesterModal);
+    document.getElementById('btnClone').addEventListener('click', submitClone);
+
+    // Close modals on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) overlay.classList.remove('active');
+        });
+    });
+
+    loadDashboard();
+});
+
+function onTabChange(tab) {
+    if (tab === 'dashboard') loadDashboard();
+    if (tab === 'classes') loadClasses();
+    if (tab === 'timetable') loadTimetableTab();
+    if (tab === 'employees') loadEmployees();
+    if (tab === 'attendance') loadAttendance();
+    if (tab === 'reports') initReports();
+    if (tab === 'alerts') loadAlerts();
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DASHBOARD
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function loadDashboard() {
+    try {
+        const [statsRes, empRes] = await Promise.all([
+            fetch('/api/dashboard/stats', { headers: headers() }),
+            fetch('/api/dashboard/employee-stats', { headers: headers() })
+        ]);
+        const stats = await statsRes.json();
+        const empStats = await empRes.json();
+
+        // Stat cards
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="stat-card" style="animation-delay:0s">
+                <div class="stat-icon">🏫</div>
+                <div class="stat-value">${stats.totalClasses}</div>
+                <div class="stat-label">Total Classes</div>
+            </div>
+            <div class="stat-card" style="animation-delay:0.1s">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value">${stats.totalEmployees}</div>
+                <div class="stat-label">Employees</div>
+            </div>
+            <div class="stat-card" style="animation-delay:0.2s">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value" style="color:var(--success)">${stats.todayPosted}</div>
+                <div class="stat-label">Posted Today</div>
+            </div>
+            <div class="stat-card" style="animation-delay:0.3s">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-value" style="color:var(--warning)">${stats.todayPending}</div>
+                <div class="stat-label">Pending Today</div>
+            </div>
+        `;
+
+        // Trend chart
+        const maxCount = Math.max(...stats.trend.map(t => t.count), 1);
+        document.getElementById('trendChart').innerHTML = stats.trend.map(t => {
+            const pct = (t.count / maxCount) * 100;
+            const dayLabel = new Date(t.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+            return `
+                <div class="chart-bar-group">
+                    <div class="chart-value">${t.count}</div>
+                    <div class="chart-bar" style="height:${Math.max(pct, 4)}%"></div>
+                    <div class="chart-label">${dayLabel}</div>
+                </div>`;
+        }).join('');
+
+        // Employee stats
+        document.getElementById('empStatsGrid').innerHTML = empStats.map(e => {
+            const pct = e.totalAssigned ? Math.round((e.postedToday / e.totalAssigned) * 100) : 0;
+            return `
+                <div class="emp-stat-card">
+                    <div class="emp-name">${e.displayName}</div>
+                    <div class="emp-classes">${e.assignedClasses.map(c => c.name).join(', ') || 'No classes'}</div>
+                    <div class="emp-progress"><div class="emp-progress-bar" style="width:${pct}%"></div></div>
+                    <div class="emp-stat-text"><strong>${e.postedToday}/${e.totalAssigned}</strong> classes posted · ${pct}% complete</div>
+                </div>`;
+        }).join('') || '<p style="color:var(--text-dim);padding:1rem">No employees found</p>';
+
+    } catch (err) {
+        console.error('Dashboard error:', err);
+    }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CLASSES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function loadClasses() {
+    try {
+        const res = await fetch('/api/classes', { headers: headers() });
+        allClasses = await res.json();
+
+        document.getElementById('classesTable').innerHTML = allClasses.map(c => `
+            <tr>
+                <td><strong>${c.name}</strong></td>
+                <td>${c.department || '—'}</td>
+                <td>${c.year}</td>
+                <td>${c.section}</td>
+                <td>${c.students?.length || 0}</td>
+                <td class="actions">
+                    <button class="btn-sm btn-edit" onclick="editClass('${c._id}')">Edit</button>
+                    <button class="btn-sm btn-delete" onclick="deleteClass('${c._id}','${c.name}')">Delete</button>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:2rem">No classes yet</td></tr>';
+
+        // Update attendance filter dropdown
+        const sel = document.getElementById('attFilterClass');
+        sel.innerHTML = '<option value="">All Classes</option>' + allClasses.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
+    } catch (err) {
+        console.error('Classes error:', err);
+    }
+}
+
+function openClassModal(cls) {
+    document.getElementById('classModalTitle').textContent = cls ? 'Edit Class' : 'Add Class';
+    document.getElementById('classEditId').value = cls ? cls._id : '';
+    document.getElementById('className').value = cls ? cls.name : '';
+    document.getElementById('classDept').value = cls ? cls.department : '';
+    document.getElementById('classYear').value = cls ? cls.year : 2;
+    document.getElementById('classSection').value = cls ? cls.section : 'A';
+    document.getElementById('classStudents').value = cls
+        ? cls.students.map(s => `${s.rollNumber}, ${s.name}`).join('\n')
+        : '';
+    document.getElementById('classModal').classList.add('active');
+}
+
+function editClass(id) {
+    const cls = allClasses.find(c => c._id === id);
+    if (cls) openClassModal(cls);
+}
+
+async function saveClass() {
+    const id = document.getElementById('classEditId').value;
+    const name = document.getElementById('className').value.trim();
+    const department = document.getElementById('classDept').value.trim();
+    const year = parseInt(document.getElementById('classYear').value) || 2;
+    const section = document.getElementById('classSection').value.trim() || 'A';
+    const studentsRaw = document.getElementById('classStudents').value.trim();
+
+    const students = studentsRaw.split('\n').filter(l => l.trim()).map(line => {
+        const parts = line.split(',');
+        return { rollNumber: parts[0]?.trim() || '', name: parts[1]?.trim() || '' };
+    });
+
+    if (!name) return showToast('Class name required', 'error');
+
+    try {
+        const url = id ? `/api/classes/${id}` : '/api/classes';
+        const method = id ? 'PATCH' : 'POST';
+        const res = await fetch(url, {
+            method, headers: headers(),
+            body: JSON.stringify({ name, department, year, section, students })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(data.message || 'Saved!', 'success');
+            closeModal('classModal');
+            loadClasses();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
+}
+
+async function deleteClass(id, name) {
+    if (!confirm(`Delete class "${name}"? This cannot be undone.`)) return;
+    try {
+        const res = await fetch(`/api/classes/${id}`, { method: 'DELETE', headers: headers() });
+        if (res.ok) {
+            showToast('Class deleted', 'success');
+            loadClasses();
+        } else {
+            showToast('Failed to delete', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
+}
+
+async function quickAddClasses() {
+    const presets = [
+        { name: 'I-A CSE', department: 'CSE', year: 1, section: 'A' },
+        { name: 'II-A CSE', department: 'CSE', year: 2, section: 'A' },
+        { name: 'III-A ECE', department: 'ECE', year: 3, section: 'A' },
+        { name: 'IV-A MECH', department: 'MECH', year: 4, section: 'A' }
+    ];
+
+    let count = 0;
+    for (const p of presets) {
+        if (!allClasses.some(c => c.name === p.name)) {
+            try {
+                const res = await fetch('/api/classes', {
+                    method: 'POST', headers: headers(),
+                    body: JSON.stringify(p)
+                });
+                if (res.ok) count++;
+            } catch (e) {}
+        }
+    }
+    if (count > 0) {
+        showToast(`Added ${count} preset class(es)!`, 'success');
+        loadClasses();
+    } else {
+        showToast('Preset classes already exist!', 'info');
+    }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EMPLOYEES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function loadEmployees() {
+    try {
+        const [usersRes, classesRes] = await Promise.all([
+            fetch('/api/users', { headers: headers() }),
+            fetch('/api/classes', { headers: headers() })
+        ]);
+        allUsers = await usersRes.json();
+        allClasses = await classesRes.json();
+
+        document.getElementById('employeesTable').innerHTML = allUsers.map(u => `
+            <tr>
+                <td><strong>${u.username}</strong></td>
+                <td>${u.displayName || '—'}</td>
+                <td><span class="chip chip-${u.role}">${u.role}</span></td>
+                <td>${u.assignedClasses?.map(c => `<span class="chip chip-class">${c.name}</span>`).join(' ') || '<span style="color:var(--text-dim)">None</span>'}</td>
+                <td class="actions">
+                    ${u.role !== 'admin' ? `
+                        <button class="btn-sm btn-assign" onclick="openAssignModal('${u._id}')">Assign</button>
+                        <button class="btn-sm btn-edit" onclick="openPasswordModal('${u._id}','${u.username}')">🔑</button>
+                        <button class="btn-sm btn-delete" onclick="deleteUser('${u._id}','${u.username}')">Delete</button>
+                    ` : '<span style="color:var(--text-dim);font-size:0.78rem">Protected</span>'}
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        console.error('Employees error:', err);
+    }
+}
+
+function openUserModal() {
+    document.getElementById('userModalTitle').textContent = 'Add Employee';
+    document.getElementById('userEditId').value = '';
+    document.getElementById('userUsername').value = '';
+    document.getElementById('userDisplayName').value = '';
+    document.getElementById('userPassword').value = '';
+    document.getElementById('userRole').value = 'employee';
+    document.getElementById('userModal').classList.add('active');
+}
+
+async function saveUser() {
+    const username = document.getElementById('userUsername').value.trim();
+    const displayName = document.getElementById('userDisplayName').value.trim();
+    const password = document.getElementById('userPassword').value;
+    const role = document.getElementById('userRole').value;
+
+    if (!username || !password) return showToast('Username and password required', 'error');
+
+    try {
+        const res = await fetch('/api/users', {
+            method: 'POST', headers: headers(),
+            body: JSON.stringify({ username, password, role, displayName })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast('Employee created!', 'success');
+            closeModal('userModal');
+            loadEmployees();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
+}
+
+async function deleteUser(id, username) {
+    if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+    try {
+        const res = await fetch(`/api/users/${id}`, { method: 'DELETE', headers: headers() });
+        if (res.ok) {
+            showToast('User deleted', 'success');
+            loadEmployees();
+        } else {
+            const data = await res.json();
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
+}
+
+// ─── Assign Classes ───
+function openAssignModal(userId) {
+    const user = allUsers.find(u => u._id === userId);
+    if (!user) return;
+
+    document.getElementById('assignModalTitle').textContent = `Assign Classes — ${user.displayName || user.username}`;
+    document.getElementById('assignUserId').value = userId;
+
+    const assignedIds = (user.assignedClasses || []).map(c => c._id || c);
+
+    document.getElementById('assignCheckboxes').innerHTML = allClasses.map(c => `
+        <label class="checkbox-item">
+            <input type="checkbox" value="${c._id}" ${assignedIds.includes(c._id) ? 'checked' : ''}>
+            <span>${c.name}</span>
+        </label>
+    `).join('') || '<p style="color:var(--text-dim)">No classes available</p>';
+
+    document.getElementById('assignModal').classList.add('active');
+}
+
+async function saveAssignment() {
+    const userId = document.getElementById('assignUserId').value;
+    const checks = document.querySelectorAll('#assignCheckboxes input[type="checkbox"]');
+    const classIds = [];
+    checks.forEach(c => { if (c.checked) classIds.push(c.value); });
+
+    try {
+        const res = await fetch(`/api/users/${userId}/assign-classes`, {
+            method: 'PATCH', headers: headers(),
+            body: JSON.stringify({ classIds })
+        });
+        if (res.ok) {
+            showToast('Classes assigned!', 'success');
+            closeModal('assignModal');
+            loadEmployees();
+            loadDashboard();
+        } else {
+            showToast('Failed to assign', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
+}
+
+// ─── Password Reset ───
+function openPasswordModal(userId, username) {
+    document.getElementById('passwordModalTitle').textContent = `Reset Password — ${username}`;
+    document.getElementById('passwordUserId').value = userId;
+    document.getElementById('newPassword').value = '';
+    document.getElementById('passwordModal').classList.add('active');
+}
+
+async function savePassword() {
+    const userId = document.getElementById('passwordUserId').value;
+    const newPassword = document.getElementById('newPassword').value;
+    if (!newPassword) return showToast('Enter a new password', 'error');
+
+    try {
+        const res = await fetch(`/api/users/${userId}/password`, {
+            method: 'PATCH', headers: headers(),
+            body: JSON.stringify({ newPassword })
+        });
+        if (res.ok) {
+            showToast('Password updated!', 'success');
+            closeModal('passwordModal');
+        } else {
+            showToast('Failed', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ATTENDANCE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function loadAttendance() {
+    const startDate = document.getElementById('attFilterDate').value;
+    const endDate = document.getElementById('attFilterEndDate')?.value;
+    const classId = document.getElementById('attFilterClass').value;
+
+    let url = '/api/attendance?';
+    if (startDate && endDate) {
+        url += `startDate=${startDate}&endDate=${endDate}&`;
+    } else if (startDate) {
+        url += `startDate=${startDate}&`;
+    } else if (endDate) {
+        url += `endDate=${endDate}&`;
+    }
+    if (classId) url += `classId=${classId}&`;
+
+    try {
+        const res = await fetch(url, { headers: headers() });
+        const data = await res.json();
+        const records = data.records || [];
+
+        document.getElementById('attendanceTable').innerHTML = records.map(r => `
+            <tr>
+                <td>${r.date}</td>
+                <td><strong>${r.className}</strong></td>
+                <td>${r.subject || '—'}</td>
+                <td>${r.period || '—'}</td>
+                <td><span class="text-success">${r.presentStudents?.length || 0}</span></td>
+                <td><span class="text-danger">${r.absentStudents?.length || 0}</span></td>
+                <td>${r.totalStudents}</td>
+                <td>${r.submittedBy}</td>
+                <td class="actions">
+                    <button class="btn-sm btn-edit" onclick="viewAttDetail('${r._id}')">View</button>
+                    <button class="btn-sm btn-preset" onclick="copyAttendanceRecord('${r._id}')">📋 Copy</button>
+                    <button class="btn-sm btn-warning" onclick="editAttendance('${r._id}')">Edit</button>
+                    <button class="btn-sm btn-delete" onclick="deleteAttendance('${r._id}')">Delete</button>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="9" class="table-empty-padding">No records found</td></tr>';
+    } catch (err) {
+        console.error('Attendance error:', err);
+    }
+}
+
+function clearAttFilter() {
+    document.getElementById('attFilterDate').value = '';
+    const endInput = document.getElementById('attFilterEndDate');
+    if (endInput) endInput.value = '';
+    document.getElementById('attFilterClass').value = '';
+    loadAttendance();
+}
+
+async function viewAttDetail(id) {
+    try {
+        const res = await fetch('/api/attendance', { headers: headers() });
+        const data = await res.json();
+        const record = (data.records || []).find(r => r._id === id);
+        if (!record) return;
+
+        document.getElementById('attDetailTitle').textContent = `${record.className} — ${record.date}`;
+
+        let html = `
+            <div class="flex-between-center">
+                <div>
+                    <span class="chip chip-class">${record.subject || 'N/A'}</span>
+                    <span class="chip chip-employee">Period ${record.period || 'N/A'}</span>
+                    <span class="text-author">by ${record.submittedBy}</span>
+                </div>
+                <button class="btn-sm btn-preset" onclick="copyAttendanceRecord('${record._id}')">📋 Copy Absentees</button>
+            </div>
+            <div class="field-group"><label>Present (${record.presentStudents?.length || 0})</label></div>
+            <div class="att-detail-grid" style="margin-bottom:1rem">
+                ${(record.presentStudents || []).map(s => `<div class="att-detail-item att-present">✅ ${s}</div>`).join('')}
+            </div>
+            <div class="field-group"><label>Absent (${record.absentStudents?.length || 0})</label></div>
+            <div class="att-detail-grid">
+                ${(record.absentStudents || []).map(s => `<div class="att-detail-item att-absent">❌ ${s}</div>`).join('')}
+            </div>
+        `;
+        document.getElementById('attDetailBody').innerHTML = html;
+        document.getElementById('attDetailModal').classList.add('active');
+    } catch (err) {
+        showToast('Failed to load details', 'error');
+    }
+}
+
+async function copyAttendanceRecord(id) {
+    try {
+        const res = await fetch('/api/attendance', { headers: headers() });
+        const data = await res.json();
+        const record = (data.records || []).find(r => r._id === id);
+        if (!record) return showToast('Record not found', 'error');
+
+        const cls = allClasses.find(c => c._id === record.classId || c.name === record.className);
+        const nameMap = {};
+        if (cls && cls.students) {
+            cls.students.forEach(s => { nameMap[s.rollNumber] = s.name; });
+        }
+
+        const absentees = record.absentStudents || [];
+        const absenteesFormatted = absentees.length > 0
+            ? absentees.map((roll, i) => `${i + 1}. ${roll}${nameMap[roll] ? ` (${nameMap[roll]})` : ''}`).join('\n')
+            : 'None (100% Present 🎉)';
+
+        const textToCopy = `📋 NSS Attendance - ${record.className}
+Date: ${record.date}
+Subject: ${record.subject || 'NSS'} | Period: ${record.period || 'N/A'}
+Present: ${record.presentStudents?.length || 0}/${record.totalStudents || 0}
+Absentees Count: ${absentees.length}
+
+❌ ${record.className} Absentees List (${record.date}):
+${absenteesFormatted}`;
+
+        await navigator.clipboard.writeText(textToCopy);
+        showToast(`Copied ${record.className} absentees for ${record.date}!`, 'success');
+    } catch (err) {
+        console.error('Copy error:', err);
+        showToast('Failed to copy to clipboard', 'error');
+    }
+}
+
+async function deleteAttendance(id) {
+    if (!confirm('Delete this attendance record?')) return;
+    try {
+        const res = await fetch(`/api/attendance/${id}`, { method: 'DELETE', headers: headers() });
+        if (res.ok) {
+            showToast('Record deleted', 'success');
+            loadAttendance();
+        } else {
+            showToast('Failed to delete', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
+}
+
+// ─── Edit Attendance ───
+let currentEditRecord = null;
+let editStudentStatusMap = {};
+
+async function editAttendance(id) {
+    try {
+        const res = await fetch('/api/attendance', { headers: headers() });
+        const data = await res.json();
+        const record = (data.records || []).find(r => r._id === id);
+        if (!record) return showToast('Record not found', 'error');
+
+        currentEditRecord = record;
+        document.getElementById('editAttId').value = record._id;
+        document.getElementById('attEditTitle').textContent = `Edit Attendance — ${record.className} (${record.date})`;
+        document.getElementById('editAttSubject').value = record.subject || 'NSS';
+        document.getElementById('editAttPeriod').value = record.period || 1;
+
+        const cls = allClasses.find(c => c._id === record.classId || c.name === record.className);
+        const presentSet = new Set(record.presentStudents || []);
+        const absentSet = new Set(record.absentStudents || []);
+
+        let allRolls = [];
+        if (cls && cls.students && cls.students.length > 0) {
+            allRolls = cls.students.map(s => ({ rollNumber: s.rollNumber, name: s.name }));
+        } else {
+            const set = new Set([...presentSet, ...absentSet]);
+            allRolls = Array.from(set).map(r => ({ rollNumber: r, name: '' }));
+        }
+
+        editStudentStatusMap = {};
+        allRolls.forEach(s => {
+            editStudentStatusMap[s.rollNumber] = presentSet.has(s.rollNumber) || (!absentSet.has(s.rollNumber));
+        });
+
+        renderEditRoster(allRolls);
+        document.getElementById('attEditModal').classList.add('active');
+    } catch (err) {
+        console.error('Edit modal error:', err);
+        showToast('Failed to open edit modal', 'error');
+    }
+}
+
+function renderEditRoster(allRolls) {
+    const grid = document.getElementById('editAttRosterGrid');
+    grid.innerHTML = allRolls.map(s => {
+        const isPresent = !!editStudentStatusMap[s.rollNumber];
+        return `
+            <div class="att-detail-item ${isPresent ? 'att-present' : 'att-absent'}" style="cursor:pointer;user-select:none" onclick="toggleEditStudent('${s.rollNumber}')">
+                ${isPresent ? '✅' : '❌'} <strong>${s.rollNumber}</strong> ${s.name ? `(${s.name})` : ''}
+            </div>`;
+    }).join('');
+}
+
+function toggleEditStudent(roll) {
+    editStudentStatusMap[roll] = !editStudentStatusMap[roll];
+    const cls = allClasses.find(c => c._id === currentEditRecord.classId || c.name === currentEditRecord.className);
+    let allRolls = [];
+    if (cls && cls.students && cls.students.length > 0) {
+        allRolls = cls.students.map(s => ({ rollNumber: s.rollNumber, name: s.name }));
+    } else {
+        allRolls = Object.keys(editStudentStatusMap).map(r => ({ rollNumber: r, name: '' }));
+    }
+    renderEditRoster(allRolls);
+}
+
+async function saveAttendanceEdit() {
+    const id = document.getElementById('editAttId').value;
+    const subject = document.getElementById('editAttSubject').value;
+    const period = parseInt(document.getElementById('editAttPeriod').value) || 1;
+
+    const presentStudents = [];
+    const absentStudents = [];
+
+    Object.entries(editStudentStatusMap).forEach(([roll, isPresent]) => {
+        if (isPresent) presentStudents.push(roll);
+        else absentStudents.push(roll);
+    });
+
+    try {
+        const res = await fetch(`/api/attendance/${id}`, {
+            method: 'PATCH',
+            headers: headers(),
+            body: JSON.stringify({ subject, period, presentStudents, absentStudents })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast('Attendance updated successfully!', 'success');
+            closeModal('attEditModal');
+            loadAttendance();
+        } else {
+            showToast(data.error || 'Failed to update attendance', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// REPORTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function initReports() {
+    const d = new Date();
+    const end = todayStr();
+    d.setDate(d.getDate() - 30);
+    const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    document.getElementById('repStartDate').value = start;
+    document.getElementById('repEndDate').value = end;
+}
+
+async function loadReports() {
+    const startDate = document.getElementById('repStartDate').value;
+    const endDate = document.getElementById('repEndDate').value;
+    if (!startDate || !endDate) return showToast('Select both dates', 'error');
+
+    try {
+        const [attRes, classesRes] = await Promise.all([
+            fetch(`/api/attendance?startDate=${startDate}&endDate=${endDate}`, { headers: headers() }),
+            fetch('/api/classes', { headers: headers() })
+        ]);
+        const attData = await attRes.json();
+        const classes = await classesRes.json();
+        const records = attData.records || [];
+
+        // Overall stats
+        const totalRecords = records.length;
+        const totalPresent = records.reduce((s, r) => s + (r.presentStudents?.length || 0), 0);
+        const totalAbsent = records.reduce((s, r) => s + (r.absentStudents?.length || 0), 0);
+        const avgPct = (totalPresent + totalAbsent) > 0
+            ? Math.round((totalPresent / (totalPresent + totalAbsent)) * 100)
+            : 0;
+
+        document.getElementById('reportStats').innerHTML = `
+            <div class="stat-card">
+                <div class="stat-icon">📝</div>
+                <div class="stat-value">${totalRecords}</div>
+                <div class="stat-label">Total Records</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value" style="color:var(--success)">${totalPresent}</div>
+                <div class="stat-label">Total Present</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">❌</div>
+                <div class="stat-value" style="color:var(--danger)">${totalAbsent}</div>
+                <div class="stat-label">Total Absent</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value" style="color:var(--primary)">${avgPct}%</div>
+                <div class="stat-label">Avg Attendance</div>
+            </div>
+        `;
+
+        // Per-class summary
+        const classMap = {};
+        records.forEach(r => {
+            if (!classMap[r.classId]) {
+                classMap[r.classId] = { name: r.className, records: 0, present: 0, absent: 0 };
+            }
+            classMap[r.classId].records++;
+            classMap[r.classId].present += r.presentStudents?.length || 0;
+            classMap[r.classId].absent += r.absentStudents?.length || 0;
+        });
+
+        document.getElementById('reportTable').innerHTML = Object.values(classMap).map(c => {
+            const total = c.present + c.absent;
+            const pct = total > 0 ? Math.round((c.present / total) * 100) : 0;
+            return `
+                <tr>
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.records}</td>
+                    <td style="color:var(--success)">${c.present}</td>
+                    <td style="color:var(--danger)">${c.absent}</td>
+                    <td><strong>${pct}%</strong></td>
+                </tr>`;
+        }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:2rem">No data</td></tr>';
+
+    } catch (err) {
+        console.error('Reports error:', err);
+        showToast('Failed to generate report', 'error');
+    }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TIMETABLE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const SUBJECT_COLORS = [
+    '#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b',
+    '#ef4444', '#ec4899', '#14b8a6', '#f97316', '#84cc16',
+    '#a855f7', '#0ea5e9', '#22d3ee', '#fb923c', '#4ade80'
+];
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const PERIOD_TIMES = [
+    '09:30-10:30', '10:30-11:20', '11:20-12:10',
+    '12:10-01:00', '02:00-02:50', '02:50-03:40', '03:40-04:30'
+];
+const NUM_PERIODS = 7;
+
+let ttSubjects = ['NSS', 'FREE'];
+let ttGrid = {}; // { Mon: [{period,time,subject},...], ... }
+let allSemesters = [];
+let colorMap = {};
+
+function assignColors() {
+    colorMap = {};
+    ttSubjects.forEach((s, i) => {
+        colorMap[s] = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+    });
+}
+
+assignColors();
+
+async function loadTimetableTab() {
+    // Load semesters
+    try {
+        const res = await fetch('/api/semesters', { headers: headers() });
+        allSemesters = await res.json();
+        renderSemesterList();
+        populateSemesterDropdown();
+    } catch (e) { console.error(e); }
+
+    // Load classes into dropdown
+    try {
+        const res = await fetch('/api/classes', { headers: headers() });
+        allClasses = await res.json();
+        const sel = document.getElementById('ttClass');
+        sel.innerHTML = allClasses.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
+
+        // Also populate override class dropdown
+        const ovSel = document.getElementById('ovClass');
+        ovSel.innerHTML = allClasses.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
+    } catch (e) { console.error(e); }
+
+    // Set default override date to today
+    document.getElementById('ovDate').value = todayStr();
+
+    loadTimetable();
+    loadOverrides();
+}
+
+function renderSemesterList() {
+    const container = document.getElementById('semesterList');
+    if (allSemesters.length === 0) {
+        container.innerHTML = '<p class="text-dim" style="padding:1rem;text-align:center">No semesters yet. Create one to start building timetables.</p>';
+        return;
+    }
+    container.innerHTML = allSemesters.map(s => `
+        <div class="semester-item">
+            <div class="sem-info">
+                <div class="sem-name">${s.name} ${s.isActive ? '<span class="chip-active">ACTIVE</span>' : ''}</div>
+                <div class="sem-dates">${s.startDate || '—'} → ${s.endDate || '—'}</div>
+            </div>
+            <div class="sem-actions">
+                ${!s.isActive ? `<button class="btn-activate" onclick="activateSemester('${s._id}')">Activate</button>` : ''}
+                ${!s.isActive ? `<button class="btn-sm btn-delete" onclick="deleteSemester('${s._id}','${s.name}')">Delete</button>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function populateSemesterDropdown() {
+    const sel = document.getElementById('ttSemester');
+    sel.innerHTML = allSemesters.map(s =>
+        `<option value="${s._id}" ${s.isActive ? 'selected' : ''}>${s.name}${s.isActive ? ' ★' : ''}</option>`
+    ).join('');
+}
+
+function openSemesterModal() {
+    document.getElementById('semName').value = '';
+    document.getElementById('semStart').value = todayStr();
+    document.getElementById('semEnd').value = '';
+    document.getElementById('semesterModal').classList.add('active');
+}
+
+async function submitSemesterModal() {
+    const name = document.getElementById('semName').value.trim();
+    const startDate = document.getElementById('semStart').value;
+    const endDate = document.getElementById('semEnd').value;
+    if (!name) return showToast('Semester name required', 'error');
+    await createSemester(name, startDate, endDate);
+    closeModal('semesterModal');
+}
+
+async function createSemester(name, startDate, endDate) {
+    try {
+        const res = await fetch('/api/semesters', {
+            method: 'POST', headers: headers(),
+            body: JSON.stringify({ name, startDate, endDate })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast('Semester created!', 'success');
+            loadTimetableTab();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) { showToast('Server error', 'error'); }
+}
+
+async function activateSemester(id) {
+    try {
+        const res = await fetch(`/api/semesters/${id}/activate`, { method: 'PATCH', headers: headers() });
+        if (res.ok) {
+            showToast('Semester activated!', 'success');
+            loadTimetableTab();
+        } else { showToast('Failed', 'error'); }
+    } catch (e) { showToast('Server error', 'error'); }
+}
+
+async function deleteSemester(id, name) {
+    if (!confirm(`Delete "${name}" and all its timetables?`)) return;
+    try {
+        const res = await fetch(`/api/semesters/${id}`, { method: 'DELETE', headers: headers() });
+        if (res.ok) {
+            showToast('Semester deleted', 'success');
+            loadTimetableTab();
+        } else {
+            const data = await res.json();
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) { showToast('Server error', 'error'); }
+}
+
+// ─── Subject Palette ───
+function renderPalette() {
+    assignColors();
+    const container = document.getElementById('paletteChips');
+    container.innerHTML = ttSubjects.map(s => {
+        const bg = colorMap[s];
+        return `<div class="palette-chip" draggable="true" data-subject="${s}"
+            style="background:${bg}22;color:${bg};border-color:${bg}44"
+            ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">${s}</div>`;
+    }).join('');
+}
+
+function addSubjectToPalette() {
+    const input = document.getElementById('newSubjectInput');
+    const name = input.value.trim().toUpperCase();
+    if (!name) return;
+    if (ttSubjects.includes(name)) { showToast('Subject already exists', 'error'); return; }
+    ttSubjects.push(name);
+    input.value = '';
+    renderPalette();
+}
+
+// ─── Grid Rendering ───
+function renderGrid() {
+    const grid = document.getElementById('ttGrid');
+    let html = '';
+
+    // Header row
+    html += '<div class="tt-cell tt-cell-header"></div>';
+    for (let p = 1; p <= NUM_PERIODS; p++) {
+        html += `<div class="tt-cell tt-cell-header">P${p}<br><span style="font-weight:400;font-size:0.65rem">${PERIOD_TIMES[p-1] || ''}</span></div>`;
+    }
+
+    // Day rows
+    for (const day of DAYS) {
+        html += `<div class="tt-cell tt-cell-day">${day}</div>`;
+        for (let p = 1; p <= NUM_PERIODS; p++) {
+            const slot = (ttGrid[day] || []).find(s => s.period === p);
+            if (slot && slot.subject) {
+                const bg = colorMap[slot.subject] || '#6366f1';
+                html += `<div class="tt-cell tt-cell-slot filled" data-day="${day}" data-period="${p}"
+                    style="background:${bg}22;color:${bg}"
+                    ondragover="onDragOver(event)" ondrop="onDrop(event)">
+                    ${slot.subject}
+                    <button class="tt-remove" onclick="removeSlot('${day}',${p})">&times;</button>
+                </div>`;
+            } else {
+                html += `<div class="tt-cell tt-cell-slot" data-day="${day}" data-period="${p}"
+                    ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)"></div>`;
+            }
+        }
+    }
+    grid.innerHTML = html;
+}
+
+// ─── Drag & Drop ───
+let draggedSubject = null;
+
+function onDragStart(e) {
+    draggedSubject = e.target.dataset.subject;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'copy';
+}
+function onDragEnd(e) {
+    e.target.classList.remove('dragging');
+    draggedSubject = null;
+}
+function onDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+function onDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    if (!draggedSubject) return;
+
+    const day = e.currentTarget.dataset.day;
+    const period = parseInt(e.currentTarget.dataset.period);
+
+    if (!ttGrid[day]) ttGrid[day] = [];
+
+    // Remove existing entry for this period
+    ttGrid[day] = ttGrid[day].filter(s => s.period !== period);
+    // Add new
+    ttGrid[day].push({ period, time: PERIOD_TIMES[period - 1] || '', subject: draggedSubject });
+    // Sort by period
+    ttGrid[day].sort((a, b) => a.period - b.period);
+
+    // If subject is new, add to palette
+    if (!ttSubjects.includes(draggedSubject)) {
+        ttSubjects.push(draggedSubject);
+    }
+
+    renderGrid();
+}
+
+function removeSlot(day, period) {
+    if (!ttGrid[day]) return;
+    ttGrid[day] = ttGrid[day].filter(s => s.period !== period);
+    renderGrid();
+}
+
+function clearTimetableGrid() {
+    if (!confirm('Clear all slots from the grid?')) return;
+    ttGrid = {};
+    DAYS.forEach(d => ttGrid[d] = []);
+    renderGrid();
+}
+
+// ─── Load / Save ───
+async function loadTimetable() {
+    const semId = document.getElementById('ttSemester').value;
+    const classId = document.getElementById('ttClass').value;
+    if (!semId || !classId) { renderPalette(); renderGrid(); return; }
+
+    try {
+        const res = await fetch(`/api/timetables?classId=${classId}&semesterId=${semId}`, { headers: headers() });
+        const timetables = await res.json();
+
+        // Reset grid
+        ttGrid = {};
+        DAYS.forEach(d => ttGrid[d] = []);
+
+        if (timetables.length > 0) {
+            const tt = timetables[0];
+            DAYS.forEach(d => {
+                if (tt.schedule && tt.schedule[d]) {
+                    ttGrid[d] = tt.schedule[d];
+                    // Add any subjects from loaded data to palette
+                    tt.schedule[d].forEach(s => {
+                        if (s.subject && !ttSubjects.includes(s.subject)) {
+                            ttSubjects.push(s.subject);
+                        }
+                    });
+                }
+            });
+        }
+
+        renderPalette();
+        renderGrid();
+    } catch (e) {
+        console.error(e);
+        renderPalette();
+        renderGrid();
+    }
+}
+
+async function saveTimetable() {
+    const semId = document.getElementById('ttSemester').value;
+    const classId = document.getElementById('ttClass').value;
+    if (!semId || !classId) { showToast('Select semester and class', 'error'); return; }
+
+    // Build schedule object with Sun included
+    const schedule = { Sun: [] };
+    DAYS.forEach(d => schedule[d] = ttGrid[d] || []);
+
+    try {
+        const res = await fetch('/api/timetables', {
+            method: 'PUT', headers: headers(),
+            body: JSON.stringify({ classId, semesterId: semId, schedule })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast('Timetable saved!', 'success');
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) { showToast('Server error', 'error'); }
+}
+
+async function cloneSemesterTimetables() {
+    const fromId = document.getElementById('ttSemester').value;
+    if (!fromId) { showToast('Select source semester', 'error'); return; }
+
+    const otherSemesters = allSemesters.filter(s => s._id !== fromId);
+    if (otherSemesters.length === 0) { showToast('Create another semester first', 'error'); return; }
+
+    const sel = document.getElementById('cloneTarget');
+    sel.innerHTML = otherSemesters.map(s => `<option value="${s._id}">${s.name}</option>`).join('');
+    document.getElementById('cloneModal').classList.add('active');
+}
+
+async function submitClone() {
+    const fromId = document.getElementById('ttSemester').value;
+    const toId = document.getElementById('cloneTarget').value;
+    if (!fromId || !toId) return;
+
+    try {
+        const res = await fetch('/api/timetables/clone', {
+            method: 'POST', headers: headers(),
+            body: JSON.stringify({ fromSemesterId: fromId, toSemesterId: toId })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(data.message, 'success');
+            closeModal('cloneModal');
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) { showToast('Server error', 'error'); }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TIMETABLE OVERRIDES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function toggleOverrideSubject() {
+    const type = document.getElementById('ovType').value;
+    const group = document.getElementById('ovSubjectGroup');
+    if (type === 'add' || type === 'replace') {
+        group.classList.remove('hidden');
+    } else {
+        group.classList.add('hidden');
+    }
+}
+
+async function loadOverrides() {
+    try {
+        const today = todayStr();
+        const res = await fetch(`/api/timetable-overrides?fromDate=${today}`, { headers: headers() });
+        const overrides = await res.json();
+
+        const TYPE_CHIPS = {
+            cancel:  '<span class="ov-chip ov-cancel">🚫 Cancel</span>',
+            add:     '<span class="ov-chip ov-add">➕ Add</span>',
+            replace: '<span class="ov-chip ov-replace">🔄 Replace</span>'
+        };
+
+        document.getElementById('overridesTable').innerHTML = overrides.length > 0
+            ? overrides.map(o => `
+                <tr>
+                    <td>${o.date}</td>
+                    <td><strong>${o.classId?.name || '—'}</strong></td>
+                    <td>Period ${o.period}</td>
+                    <td>${TYPE_CHIPS[o.type] || o.type}</td>
+                    <td>${o.type === 'cancel' ? '<span class="text-dim">—</span>' : (o.newSubject || '—')}</td>
+                    <td class="cell-truncate">${o.reason || '<span class="text-dim">No reason</span>'}</td>
+                    <td>${o.createdBy}</td>
+                    <td><button class="btn-sm btn-delete" onclick="deleteOverride('${o._id}')">Delete</button></td>
+                </tr>
+            `).join('')
+            : '<tr><td colspan="8" class="table-empty-padding">No upcoming overrides</td></tr>';
+    } catch (err) {
+        console.error('Load overrides error:', err);
+    }
+}
+
+async function createOverride() {
+    const date = document.getElementById('ovDate').value;
+    const classId = document.getElementById('ovClass').value;
+    const period = document.getElementById('ovPeriod').value;
+    const type = document.getElementById('ovType').value;
+    const newSubject = document.getElementById('ovNewSubject').value;
+    const reason = document.getElementById('ovReason').value;
+
+    if (!date || !classId || !period) {
+        return showToast('Please fill Date, Class, and Period', 'error');
+    }
+
+    try {
+        const body = { date, classId, type, period: parseInt(period), reason };
+        if (type === 'add' || type === 'replace') body.newSubject = newSubject;
+
+        const res = await fetch('/api/timetable-overrides', {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`Override created: ${type} Period ${period}`, 'success');
+            document.getElementById('ovReason').value = '';
+            document.getElementById('ovPeriod').value = '';
+            loadOverrides();
+        } else {
+            showToast(data.error || 'Failed to create override', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
+}
+
+async function deleteOverride(id) {
+    if (!confirm('Delete this override?')) return;
+    try {
+        const res = await fetch(`/api/timetable-overrides/${id}`, { method: 'DELETE', headers: headers() });
+        if (res.ok) {
+            showToast('Override deleted', 'success');
+            loadOverrides();
+        } else {
+            const data = await res.json();
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HELPERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ALERTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const PRIORITY_CONFIG = {
+    info:    { icon: '🟢', label: 'Info',    color: '#10b981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.25)' },
+    warning: { icon: '🟡', label: 'Warning', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)' },
+    urgent:  { icon: '🔴', label: 'Urgent',  color: '#ef4444', bg: 'rgba(239,68,68,0.12)',  border: 'rgba(239,68,68,0.25)'  }
+};
+
+async function loadAlerts() {
+    try {
+        const res = await fetch('/api/alerts', { headers: headers() });
+        const data = await res.json();
+        const alerts = Array.isArray(data) ? data : [];
+        document.getElementById('alertCount').textContent = alerts.length;
+
+        const container = document.getElementById('alertsList');
+        if (alerts.length === 0) {
+            container.innerHTML = `<p style="color:var(--text-dim);padding:1.5rem;text-align:center">No alerts created yet. Use the form above to broadcast one.</p>`;
+            return;
+        }
+
+        container.innerHTML = alerts.map(a => {
+            const p = PRIORITY_CONFIG[a.priority] || PRIORITY_CONFIG.info;
+            const timeAgo = getTimeAgo(a.createdAt);
+            const expiry = a.expiresAt ? `<span class="alert-expiry">Expires: ${new Date(a.expiresAt).toLocaleDateString()}</span>` : '';
+            return `
+                <div class="alert-card" style="border-left:3px solid ${p.color};background:${a.isActive ? p.bg : 'rgba(255,255,255,0.02)'}; opacity:${a.isActive ? 1 : 0.5}">
+                    <div class="alert-card-header">
+                        <div class="alert-card-title">
+                            <span>${p.icon}</span>
+                            <strong>${a.title}</strong>
+                            <span class="chip" style="background:${p.bg};color:${p.color};font-size:0.65rem;padding:0.1rem 0.35rem">${p.label}</span>
+                            ${!a.isActive ? '<span class="chip" style="background:rgba(255,255,255,0.06);color:var(--text-dim);font-size:0.65rem;padding:0.1rem 0.35rem">Inactive</span>' : ''}
+                        </div>
+                        <div class="alert-card-actions">
+                            <button class="btn-sm btn-edit" onclick="toggleAlert('${a._id}')">${a.isActive ? '⏸️ Deactivate' : '▶️ Activate'}</button>
+                            <button class="btn-sm btn-delete" onclick="deleteAlert('${a._id}')">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="alert-card-body">${a.message}</div>
+                    <div class="alert-card-meta">
+                        <span>By ${a.createdBy} · ${timeAgo}</span>
+                        ${expiry}
+                    </div>
+                </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Alerts error:', err);
+    }
+}
+
+async function sendAlert() {
+    const title = document.getElementById('alertTitle').value.trim();
+    const message = document.getElementById('alertMessage').value.trim();
+    const priority = document.getElementById('alertPriority').value;
+    const expiresAt = document.getElementById('alertExpiry').value || null;
+
+    if (!title || !message) { showToast('Title and message required', 'error'); return; }
+
+    try {
+        const res = await fetch('/api/alerts', {
+            method: 'POST', headers: headers(),
+            body: JSON.stringify({ title, message, priority, expiresAt })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast('Alert sent to all employees!', 'success');
+            document.getElementById('alertTitle').value = '';
+            document.getElementById('alertMessage').value = '';
+            document.getElementById('alertPriority').value = 'info';
+            document.getElementById('alertExpiry').value = '';
+            loadAlerts();
+        } else {
+            showToast(data.error || 'Failed to send', 'error');
+        }
+    } catch (e) { showToast('Server error', 'error'); }
+}
+
+async function toggleAlert(id) {
+    try {
+        const res = await fetch(`/api/alerts/${id}/toggle`, { method: 'PATCH', headers: headers() });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(data.message, 'success');
+            loadAlerts();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) { showToast('Server error', 'error'); }
+}
+
+async function deleteAlert(id) {
+    if (!confirm('Delete this alert permanently?')) return;
+    try {
+        const res = await fetch(`/api/alerts/${id}`, { method: 'DELETE', headers: headers() });
+        if (res.ok) {
+            showToast('Alert deleted', 'success');
+            loadAlerts();
+        } else {
+            showToast('Failed to delete', 'error');
+        }
+    } catch (e) { showToast('Server error', 'error'); }
+}
+
+function getTimeAgo(dateStr) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString();
+}
+</script>
+</body>
+</html>

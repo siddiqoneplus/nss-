@@ -1,0 +1,19 @@
+{
+  "name": "nss-attendance-dashboard",
+  "version": "1.0.0",
+  "description": "NSS Attendance Dashboard with class sections and employee assignments",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "compression": "^1.8.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^4.22.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.3.1",
+    "socket.io": "^4.8.3"
+  }
+}

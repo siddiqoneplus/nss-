@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="NSS Employee Attendance Dashboard — Post attendance for your assigned classes.">
+    <title>Dashboard — NSS Attendance</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-mid: #1e293b;
+            --bg-card: rgba(255,255,255,0.04);
+            --glass-border: rgba(255,255,255,0.08);
+            --primary: #6366f1;
+            --primary-glow: rgba(99,102,241,0.3);
+            --accent: #8b5cf6;
+            --success: #10b981;
+            --success-bg: rgba(16,185,129,0.12);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245,158,11,0.12);
+            --danger: #ef4444;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(160deg, var(--bg-dark), #111827, var(--bg-mid));
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ─── Top Navbar ─── */
+        .navbar {
+            background: rgba(15,23,42,0.85);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0.85rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .navbar-brand {
+            display: flex; align-items: center; gap: 0.6rem;
+            font-size: 1.1rem; font-weight: 700;
+        }
+        .navbar-brand .icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+        }
+        .navbar-right {
+            display: flex; align-items: center; gap: 1rem;
+        }
+        .user-badge {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            padding: 0.4rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+        .user-badge strong { color: var(--text); }
+        .btn-logout {
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.25);
+            color: #fca5a5;
+            padding: 0.4rem 1rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-logout:hover {
+            background: rgba(239,68,68,0.25);
+            color: #fff;
+        }
+
+        /* ─── Main Content ─── */
+        .main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+
+        .welcome-section {
+            margin-bottom: 2rem;
+            animation: fadeIn 0.5s ease;
+        }
+        .welcome-section h2 {
+            font-size: 1.6rem; font-weight: 800;
+            background: linear-gradient(135deg, var(--text), var(--text-muted));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .welcome-section p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 0.25rem;
+        }
+        .date-badge {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            padding: 0.35rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            color: var(--primary);
+            margin-top: 0.5rem;
+            font-weight: 600;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── Classes Grid ─── */
+        .section-title {
+            font-size: 1.1rem; font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .section-title .count {
+            background: var(--primary-glow);
+            color: var(--primary);
+            font-size: 0.75rem;
+            padding: 0.15rem 0.55rem;
+            border-radius: 12px;
+            font-weight: 700;
+        }
+
+        .classes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .class-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+            animation: fadeIn 0.5s ease backwards;
+            position: relative;
+            overflow: hidden;
+        }
+        .class-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .class-card:hover {
+            border-color: rgba(99,102,241,0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+        }
+        .class-card:hover::before { opacity: 1; }
+
+        .class-card .class-name {
+            font-size: 1.15rem; font-weight: 700;
+            margin-bottom: 0.35rem;
+        }
+        .class-card .class-meta {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            display: flex; gap: 1rem;
+        }
+        .class-card .status-row {
+            margin-top: 1rem;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .status-chip {
+            padding: 0.3rem 0.7rem;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .status-chip.posted {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+        .status-chip.pending {
+            background: var(--warning-bg);
+            color: var(--warning);
+        }
+
+        .class-schedule {
+            margin-top: 0.6rem;
+            padding: 0.5rem 0;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .class-schedule-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.35rem;
+        }
+        .class-schedule-periods {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+        .class-schedule-periods .sched-chip {
+            padding: 0.18rem 0.45rem;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(99,102,241,0.1);
+            color: var(--primary);
+        }
+        .class-schedule-periods .sched-chip.free {
+            background: rgba(255,255,255,0.04);
+            color: var(--text-dim);
+        }
+
+        .warning-banner {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .success-banner {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+            padding: 0.65rem 0.9rem;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-top: 0.75rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .field-select {
+            width: 100%;
+            padding: 0.7rem 0.9rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .field-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+        .field-select option { background: var(--bg-mid); color: var(--text); }
+
+        .no-classes {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+        .no-classes .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* ─── Modal ─── */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6);
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: #1e293b;
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 560px;
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: modalIn 0.35s cubic-bezier(0.16,1,0.3,1);
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.92) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 1.1rem; font-weight: 700; }
+        .modal-close {
+            background: none; border: none;
+            color: var(--text-muted); font-size: 1.4rem;
+            cursor: pointer; transition: color 0.2s;
+            padding: 0.25rem;
+        }
+        .modal-close:hover { color: var(--text); }
+
+        .modal-body { padding: 1.5rem; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .field-group { margin-bottom: 1rem; }
+        .field-group label {
+            display: block;
+            font-size: 0.8rem; font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.4rem;
+        }
+        .field-input {
+            width: 100%;
+            padding: 0.7rem 0.9rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .field-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
+        .student-list-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+        .student-list-header h4 {
+            font-size: 0.9rem; font-weight: 600;
+        }
+        .select-all-btn {
+            background: var(--primary-glow);
+            color: var(--primary);
+            border: none;
+            padding: 0.3rem 0.7rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .select-all-btn:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .student-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 0.5rem;
+        }
+        .student-item {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.6rem 0.75rem;
+            border-radius: 8px;
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+        .student-item:hover { background: rgba(255,255,255,0.04); }
+
+        .student-item input[type="checkbox"] {
+            width: 18px; height: 18px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+        .student-item .roll { font-weight: 600; font-size: 0.88rem; }
+        .student-item .name { color: var(--text-muted); font-size: 0.82rem; }
+
+        .attendance-summary {
+            background: rgba(99,102,241,0.08);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 10px;
+            padding: 0.8rem 1rem;
+            margin-top: 1rem;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+        .attendance-summary .stat-label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+        .attendance-summary .stat-value {
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin-top: 0.15rem;
+        }
+        .stat-present { color: var(--success); }
+        .stat-absent { color: var(--danger); }
+        .stat-total { color: var(--primary); }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--glass-border);
+            display: flex; gap: 0.75rem;
+            justify-content: flex-end;
+        }
+        .btn-cancel {
+            padding: 0.65rem 1.25rem;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            border-radius: 10px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-cancel:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+        .btn-submit {
+            padding: 0.65rem 1.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px var(--primary-glow);
+        }
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* ─── Recent Activity ─── */
+        .activity-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .activity-item {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 0.85rem 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: fadeIn 0.4s ease backwards;
+        }
+        .activity-item .info { display: flex; flex-direction: column; gap: 0.15rem; }
+        .activity-item .info .title { font-weight: 600; font-size: 0.9rem; }
+        .activity-item .info .meta { color: var(--text-dim); font-size: 0.78rem; }
+        .activity-item .present-badge {
+            background: var(--success-bg);
+            color: var(--success);
+            padding: 0.3rem 0.7rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .btn-sm-action {
+            background: rgba(255,255,255,0.06);
+            color: var(--text);
+            border: 1px solid var(--glass-border);
+            padding: 0.3rem 0.65rem;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .btn-sm-action:hover { background: rgba(255,255,255,0.12); }
+        .btn-sm-preset {
+            background: var(--primary-glow);
+            color: var(--primary);
+            border-color: rgba(99,102,241,0.3);
+        }
+        .btn-sm-preset:hover { background: rgba(99,102,241,0.3); }
+
+        .att-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.5rem;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        .att-detail-item {
+            padding: 0.45rem 0.6rem;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .att-present { background: var(--success-bg); color: var(--success); }
+        .att-absent { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .chip {
+            display: inline-block;
+            padding: 0.18rem 0.55rem;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .chip-class { background: var(--primary-glow); color: var(--primary); }
+        .chip-employee { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 0.85rem 1.5rem;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            z-index: 300;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success {
+            background: var(--success-bg);
+            border: 1px solid rgba(16,185,129,0.3);
+            color: var(--success);
+        }
+        .toast.error {
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+        @media (max-width: 600px) {
+            .navbar { padding: 0.65rem 1rem; }
+            .main { padding: 1rem; }
+            .classes-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .welcome-section h2 { font-size: 1.3rem; }
+            .user-badge { display: none; }
+            .modal { width: 95%; max-height: 90vh; overflow-y: auto; padding: 1.25rem; }
+            .students-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.5rem; }
+            .toast { bottom: 1rem; right: 1rem; left: 1rem; text-align: center; }
+            .btn-submit { padding: 0.85rem; font-size: 0.95rem; }
+            .emp-alert { flex-direction: row; padding: 0.75rem 0.9rem; }
+        }
+
+        .section-title-spaced { margin-top: 1.5rem; }
+        .activity-placeholder { padding: 1.5rem; }
+        .text-dim { color: var(--text-dim); }
+        .hidden { display: none !important; }
+        .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ─── Employee Alert Banners ─── */
+        .alerts-section { margin-bottom: 1rem; }
+        .emp-alert {
+            border-radius: 12px;
+            padding: 0.85rem 1.1rem;
+            margin-bottom: 0.6rem;
+            display: flex;
+            gap: 0.7rem;
+            align-items: flex-start;
+            animation: fadeIn 0.4s ease;
+        }
+        .emp-alert.info {
+            background: rgba(16,185,129,0.1);
+            border: 1px solid rgba(16,185,129,0.25);
+        }
+        .emp-alert.warning {
+            background: rgba(245,158,11,0.1);
+            border: 1px solid rgba(245,158,11,0.25);
+        }
+        .emp-alert.urgent {
+            background: rgba(239,68,68,0.12);
+            border: 1px solid rgba(239,68,68,0.3);
+            animation: pulse-border 2s ease infinite;
+        }
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(239,68,68,0.3); }
+            50% { border-color: rgba(239,68,68,0.6); }
+        }
+        .emp-alert-icon { font-size: 1.2rem; flex-shrink: 0; padding-top: 0.1rem; }
+        .emp-alert-content { flex: 1; }
+        .emp-alert-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 0.2rem;
+        }
+        .emp-alert.info .emp-alert-title { color: #6ee7b7; }
+        .emp-alert.warning .emp-alert-title { color: #fbbf24; }
+        .emp-alert.urgent .emp-alert-title { color: #fca5a5; }
+        .emp-alert-body {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
+        .emp-alert-time {
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            margin-top: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">
+        <div class="icon">📋</div>
+        <span>NSS Attendance</span>
+    </div>
+    <div class="navbar-right">
+        <div class="user-badge">Logged in as <strong id="navUsername">—</strong></div>
+        <button class="btn-logout" id="logoutBtn">Logout</button>
+    </div>
+</nav>
+
+<div class="main">
+    <!-- Welcome -->
+    <div class="welcome-section">
+        <h2 id="welcomeMsg">Good Morning</h2>
+        <p>Post attendance for your assigned classes</p>
+        <div class="date-badge">
+            📅 <span id="todayDate"></span>
+        </div>
+    </div>
+
+    <!-- Admin Alerts Banner -->
+    <div class="alerts-section" id="alertsBanner"></div>
+
+    <!-- My Classes -->
+    <div class="section-title">
+        My Classes <span class="count" id="classCount">0</span>
+    </div>
+    <div class="classes-grid" id="classesGrid">
+        <div class="no-classes">
+            <div class="empty-icon">📭</div>
+            <p>No classes assigned to you yet.<br>Contact admin for class assignments.</p>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="section-title section-title-spaced">Recent Activity</div>
+    <div class="activity-list" id="activityList">
+        <div class="no-classes activity-placeholder">
+            <p class="text-dim">No recent attendance posts</p>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Modal -->
+<div class="modal-overlay" id="attendanceModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">Post Attendance</h3>
+            <button class="modal-close" id="modalClose" onclick="closeModal('attendanceModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="field-group">
+                    <label for="attDate">Date</label>
+                    <input type="date" id="attDate" class="field-input" onchange="checkSelectedSlot()">
+                </div>
+                <div class="field-group">
+                    <label for="attPeriodSelect">Period</label>
+                    <select id="attPeriodSelect" class="field-select" onchange="checkSelectedSlot()">
+                        <option value="">-- Select Period --</option>
+                        <option value="1">Period 1 (09:30 - 10:30)</option>
+                        <option value="2">Period 2 (10:30 - 11:20)</option>
+                        <option value="3">Period 3 (11:20 - 12:10)</option>
+                        <option value="4">Period 4 (12:10 - 01:00)</option>
+                        <option value="5">Period 5 (02:00 - 02:50)</option>
+                        <option value="6">Period 6 (02:50 - 03:40)</option>
+                        <option value="7">Period 7 (03:40 - 04:30)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Verification Banners -->
+            <div id="slotWarningBanner" class="warning-banner hidden">
+                <span>⚠️</span>
+                <span id="slotWarningText">No NSS period assigned for this class and period.</span>
+            </div>
+
+            <div id="slotSuccessBanner" class="success-banner hidden">
+                <span>✅</span>
+                <span id="slotSuccessText">Verified NSS Period!</span>
+            </div>
+
+            <!-- Student Roster (Hidden until verified) -->
+            <div id="rosterSection" class="hidden">
+                <div class="student-list-header">
+                    <h4>Students — <span id="studentTotal">0</span> total</h4>
+                    <button class="select-all-btn" id="selectAllBtn">Select All</button>
+                </div>
+                <div class="student-list" id="studentList"></div>
+
+                <div class="attendance-summary">
+                    <div>
+                        <div class="stat-label">Present</div>
+                        <div class="stat-value stat-present" id="sumPresent">0</div>
+                    </div>
+                    <div>
+                        <div class="stat-label">Absent</div>
+                        <div class="stat-value stat-absent" id="sumAbsent">0</div>
+                    </div>
+                    <div>
+                        <div class="stat-label">Total</div>
+                        <div class="stat-value stat-total" id="sumTotal">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="btnCancelAtt" onclick="closeModal('attendanceModal')">Cancel</button>
+            <button class="btn-submit" id="btnSubmitAtt" disabled>Submit Attendance</button>
+        </div>
+    </div>
+</div>
+
+<!-- View Attendance Detail Modal (Employee) -->
+<div class="modal-overlay" id="empAttDetailModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="empAttDetailTitle">Attendance Detail</h3>
+            <button class="modal-close" onclick="closeModal('empAttDetailModal')">&times;</button>
+        </div>
+        <div class="modal-body" id="empAttDetailBody"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const API = '';
+const TOKEN = localStorage.getItem('nss_token');
+const ROLE = localStorage.getItem('nss_role');
+const USERNAME = localStorage.getItem('nss_username');
+
+if (!TOKEN || ROLE === 'admin') {
+    window.location.href = !TOKEN ? 'login.html' : 'admin.html';
+}
+
+const headers = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` });
+
+// ─── Socket.IO ───
+const socket = io();
+socket.emit('register', USERNAME);
+socket.on('attendance_posted', () => loadMyClasses());
+socket.on('attendance_deleted', () => loadMyClasses());
+socket.on('new_alert', () => loadEmployeeAlerts());
+socket.on('alert_dismissed', () => loadEmployeeAlerts());
+
+// ─── Init ───
+document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('navUsername').textContent = USERNAME;
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+    document.getElementById('welcomeMsg').textContent = `${greeting}, ${localStorage.getItem('nss_displayName') || USERNAME}`;
+    document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.clear();
+        window.location.href = 'login.html';
+    });
+
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.classList.remove('active');
+        });
+    });
+
+    await loadMyClasses();
+    await loadRecentActivity();
+    await loadEmployeeAlerts();
+});
+
+// ─── State ───
+let myClasses = [];
+let currentClassId = null;
+let currentClassStudents = [];
+let todayStatus = [];
+
+async function loadMyClasses() {
+    try {
+        const [meRes, statusRes] = await Promise.all([
+            fetch('/api/me', { headers: headers() }),
+            fetch(`/api/attendance/status?date=${todayStr()}`, { headers: headers() })
+        ]);
+        const me = await meRes.json();
+        todayStatus = await statusRes.json();
+        myClasses = me.assignedClasses || [];
+
+        document.getElementById('classCount').textContent = myClasses.length;
+
+        const grid = document.getElementById('classesGrid');
+        if (myClasses.length === 0) {
+            grid.innerHTML = `<div class="no-classes"><div class="empty-icon">📭</div><p>No classes assigned to you yet.<br>Contact admin for class assignments.</p></div>`;
+            return;
+        }
+
+        grid.innerHTML = myClasses.map((cls, i) => {
+            const posted = todayStatus.filter(s => s.classId === cls._id);
+            const isPosted = posted.length > 0;
+
+            return `
+                <div class="class-card" onclick="openAttendance('${cls._id}')" style="animation-delay:${i * 0.08}s">
+                    <div class="class-name">${cls.name}</div>
+                    <div class="class-meta">
+                        <span>🏫 ${cls.department || '—'}</span>
+                        <span>📚 Year ${cls.year || '?'} — Sec ${cls.section || '?'}</span>
+                    </div>
+                    <div class="status-row">
+                        ${isPosted
+                            ? `<span class="status-chip posted">✅ Posted (${posted.length} record${posted.length>1?'s':''})</span>`
+                            : `<span class="status-chip pending">⏳ Pending</span>`
+                        }
+                    </div>
+                </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Load classes error:', err);
+    }
+}
+
+let employeeRecentRecords = [];
+
+async function loadRecentActivity() {
+    try {
+        const res = await fetch('/api/attendance?page=1&limit=10', { headers: headers() });
+        const data = await res.json();
+        employeeRecentRecords = (data.records || []).filter(r => r.submittedBy === USERNAME);
+
+        const list = document.getElementById('activityList');
+        if (employeeRecentRecords.length === 0) {
+            list.innerHTML = `<div class="no-classes" style="padding:1.5rem"><p class="text-dim">No recent attendance posts</p></div>`;
+            return;
+        }
+
+        list.innerHTML = employeeRecentRecords.map((r, i) => `
+            <div class="activity-item" style="animation-delay:${i * 0.06}s">
+                <div class="info">
+                    <div class="title">${r.className}${r.subject ? ' — ' + r.subject : ''}</div>
+                    <div class="meta">${r.date} · Period ${r.period || 'N/A'}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
+                    <div class="present-badge">${r.presentStudents?.length || 0}/${r.totalStudents || 0}</div>
+                    <button class="btn-sm-action" onclick="viewEmpAttDetail('${r._id}')">👁️ View</button>
+                    <button class="btn-sm-action btn-sm-preset" onclick="copyEmpAttendance('${r._id}')">📋 Copy</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Load activity error:', err);
+    }
+}
+
+async function viewEmpAttDetail(id) {
+    const record = employeeRecentRecords.find(r => r._id === id);
+    if (!record) return showToast('Record not found', 'error');
+
+    document.getElementById('empAttDetailTitle').textContent = `${record.className} — ${record.date}`;
+
+    let html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
+            <div>
+                <span class="chip chip-class">${record.subject || 'N/A'}</span>
+                <span class="chip chip-employee">Period ${record.period || 'N/A'}</span>
+            </div>
+            <button class="btn-sm-action btn-sm-preset" onclick="copyEmpAttendance('${record._id}')">📋 Copy Absentees</button>
+        </div>
+        <div class="field-group"><label>Present (${record.presentStudents?.length || 0})</label></div>
+        <div class="att-detail-grid" style="margin-bottom:1rem">
+            ${(record.presentStudents || []).map(s => `<div class="att-detail-item att-present">✅ ${s}</div>`).join('')}
+        </div>
+        <div class="field-group"><label>Absent (${record.absentStudents?.length || 0})</label></div>
+        <div class="att-detail-grid">
+            ${(record.absentStudents || []).map(s => `<div class="att-detail-item att-absent">❌ ${s}</div>`).join('')}
+        </div>
+    `;
+    document.getElementById('empAttDetailBody').innerHTML = html;
+    document.getElementById('empAttDetailModal').classList.add('active');
+}
+
+async function copyEmpAttendance(id) {
+    const record = employeeRecentRecords.find(r => r._id === id);
+    if (!record) return showToast('Record not found', 'error');
+
+    const cls = myClasses.find(c => c._id === record.classId || c.name === record.className);
+    const nameMap = {};
+    if (cls && cls.students) {
+        cls.students.forEach(s => { nameMap[s.rollNumber] = s.name; });
+    }
+
+    const absentees = record.absentStudents || [];
+    const absenteesFormatted = absentees.length > 0
+        ? absentees.map((roll, i) => `${i + 1}. ${roll}${nameMap[roll] ? ` (${nameMap[roll]})` : ''}`).join('\n')
+        : 'None (100% Present 🎉)';
+
+    const textToCopy = `📋 NSS Attendance - ${record.className}
+Date: ${record.date}
+Subject: ${record.subject || 'NSS'} | Period: ${record.period || 'N/A'}
+Present: ${record.presentStudents?.length || 0}/${record.totalStudents || 0}
+Absentees Count: ${absentees.length}
+
+❌ ${record.className} Absentees List (${record.date}):
+${absenteesFormatted}`;
+
+    try {
+        await navigator.clipboard.writeText(textToCopy);
+        showToast(`Copied ${record.className} absentees!`, 'success');
+    } catch (err) {
+        console.error('Copy error:', err);
+        showToast('Failed to copy to clipboard', 'error');
+    }
+}
+
+// ─── Employee Alerts ───
+async function loadEmployeeAlerts() {
+    try {
+        const res = await fetch('/api/alerts', { headers: headers() });
+        const alerts = await res.json();
+        const banner = document.getElementById('alertsBanner');
+
+        if (!alerts || alerts.length === 0) {
+            banner.innerHTML = '';
+            return;
+        }
+
+        const ICONS = { info: '📢', warning: '⚠️', urgent: '🚨' };
+
+        banner.innerHTML = alerts.map(a => {
+            const icon = ICONS[a.priority] || '📢';
+            const diff = Date.now() - new Date(a.createdAt).getTime();
+            const mins = Math.floor(diff / 60000);
+            let timeAgo = 'Just now';
+            if (mins >= 60) { const h = Math.floor(mins/60); timeAgo = h < 24 ? `${h}h ago` : `${Math.floor(h/24)}d ago`; }
+            else if (mins >= 1) { timeAgo = `${mins}m ago`; }
+
+            return `
+                <div class="emp-alert ${a.priority}">
+                    <div class="emp-alert-icon">${icon}</div>
+                    <div class="emp-alert-content">
+                        <div class="emp-alert-title">${a.title}</div>
+                        <div class="emp-alert-body">${a.message}</div>
+                        <div class="emp-alert-time">${timeAgo}</div>
+                    </div>
+                </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Load alerts error:', err);
+    }
+}
+
+// ─── Attendance Modal ───
+let isSlotVerified = false;
+
+async function openAttendance(classId) {
+    currentClassId = classId;
+    const cls = myClasses.find(c => c._id === classId);
+    if (!cls) return;
+
+    document.getElementById('modalTitle').textContent = `Post Attendance — ${cls.name}`;
+    const today = todayStr();
+    const dateInput = document.getElementById('attDate');
+    dateInput.value = today;
+    dateInput.max = today;
+    document.getElementById('attPeriodSelect').value = '';
+
+    // Reset verification UI
+    document.getElementById('slotWarningBanner').classList.add('hidden');
+    document.getElementById('slotSuccessBanner').classList.add('hidden');
+    document.getElementById('rosterSection').classList.add('hidden');
+    const submitBtn = document.getElementById('btnSubmitAtt');
+    submitBtn.disabled = true;
+    isSlotVerified = false;
+
+    try {
+        const res = await fetch('/api/classes', { headers: headers() });
+        const allClasses = await res.json();
+        const fullClass = allClasses.find(c => c._id === classId);
+        currentClassStudents = fullClass ? fullClass.students : [];
+
+        renderStudentList();
+        document.getElementById('attendanceModal').classList.add('active');
+    } catch (err) {
+        showToast('Failed to load students', 'error');
+    }
+}
+
+async function checkSelectedSlot() {
+    const date = document.getElementById('attDate').value;
+    const period = document.getElementById('attPeriodSelect').value;
+    const warnBanner = document.getElementById('slotWarningBanner');
+    const warnText = document.getElementById('slotWarningText');
+    const succBanner = document.getElementById('slotSuccessBanner');
+    const succText = document.getElementById('slotSuccessText');
+    const rosterSection = document.getElementById('rosterSection');
+    const submitBtn = document.getElementById('btnSubmitAtt');
+
+    // Reset UI
+    warnBanner.classList.add('hidden');
+    succBanner.classList.add('hidden');
+    rosterSection.classList.add('hidden');
+    submitBtn.disabled = true;
+    isSlotVerified = false;
+
+    if (!date || !period) return;
+
+    if (date > todayStr()) {
+        warnText.textContent = '⛔ Cannot post attendance for future dates.';
+        warnBanner.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/timetables/verify-slot?classId=${currentClassId}&date=${date}&period=${period}`, {
+            headers: headers()
+        });
+        const data = await res.json();
+
+        if (data.valid) {
+            let msg = `Verified NSS Period! (${data.className} · ${data.day} Period ${data.period})`;
+            if (data.overrideReason) msg += ` — ⚡ ${data.overrideReason}`;
+            succText.textContent = msg;
+            succBanner.classList.remove('hidden');
+            rosterSection.classList.remove('hidden');
+            submitBtn.disabled = false;
+            isSlotVerified = true;
+        } else {
+            let reason = data.reason || 'No NSS period assigned for this date & period.';
+            if (data.overridden) reason = `⚡ Override: ${reason}`;
+            warnText.textContent = reason;
+            warnBanner.classList.remove('hidden');
+        }
+    } catch (err) {
+        warnText.textContent = 'Server error verifying timetable schedule.';
+        warnBanner.classList.remove('hidden');
+    }
+}
+
+function renderStudentList() {
+    const list = document.getElementById('studentList');
+    document.getElementById('studentTotal').textContent = currentClassStudents.length;
+
+    list.innerHTML = currentClassStudents.map((s, i) => `
+        <label class="student-item">
+            <input type="checkbox" checked data-roll="${s.rollNumber}" onchange="updateSummary()">
+            <span class="roll">${s.rollNumber}</span>
+            <span class="name">${s.name || ''}</span>
+        </label>
+    `).join('');
+
+    updateSummary();
+}
+
+function updateSummary() {
+    const checks = document.querySelectorAll('#studentList input[type="checkbox"]');
+    let present = 0, absent = 0;
+    checks.forEach(c => { if (c.checked) present++; else absent++; });
+    document.getElementById('sumPresent').textContent = present;
+    document.getElementById('sumAbsent').textContent = absent;
+    document.getElementById('sumTotal').textContent = checks.length;
+}
+
+// Select All toggle
+document.getElementById('selectAllBtn').addEventListener('click', () => {
+    const checks = document.querySelectorAll('#studentList input[type="checkbox"]');
+    const allChecked = [...checks].every(c => c.checked);
+    checks.forEach(c => c.checked = !allChecked);
+    document.getElementById('selectAllBtn').textContent = allChecked ? 'Select All' : 'Deselect All';
+    updateSummary();
+});
+
+// Close modal
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('btnCancelAtt').addEventListener('click', closeModal);
+document.getElementById('attendanceModal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+});
+
+function closeModal() {
+    document.getElementById('attendanceModal').classList.remove('active');
+}
+
+// Submit
+document.getElementById('btnSubmitAtt').addEventListener('click', async () => {
+    const date = document.getElementById('attDate').value;
+    const period = parseInt(document.getElementById('attPeriodSelect').value) || 0;
+
+    if (!isSlotVerified) {
+        showToast('You can only submit attendance for assigned NSS periods', 'error');
+        return;
+    }
+
+    const checks = document.querySelectorAll('#studentList input[type="checkbox"]');
+    const present = [], absent = [];
+    checks.forEach(c => {
+        if (c.checked) present.push(c.dataset.roll);
+        else absent.push(c.dataset.roll);
+    });
+
+    const btn = document.getElementById('btnSubmitAtt');
+    btn.disabled = true;
+    btn.textContent = 'Posting...';
+
+    try {
+        const res = await fetch(`${API}/api/attendance`, {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify({
+                date,
+                classId: currentClassId,
+                subject: 'NSS',
+                period,
+                presentStudents: present,
+                absentStudents: absent
+            })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast('Attendance posted successfully!', 'success');
+            closeModal();
+            await loadMyClasses();
+            await loadRecentActivity();
+        } else {
+            showToast(data.error || 'Failed to post', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit Attendance';
+    }
+});
+
+// ─── Helpers ───
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+}
+
+function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
