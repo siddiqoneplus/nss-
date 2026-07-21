@@ -907,35 +907,68 @@ async function loadRecentActivity() {
     }
 }
 
-async function viewEmpAttDetail(id) {
-    const record = employeeRecentRecords.find(r => r._id === id);
+let currentEmpDetailRecord = null;
+
+async function viewEmpAttDetail(recordOrId) {
+    let record = null;
+    if (typeof recordOrId === 'object' && recordOrId !== null) {
+        record = recordOrId;
+    } else {
+        record = employeeRecentRecords.find(r => r._id === recordOrId);
+    }
     if (!record) return showToast('Record not found', 'error');
 
+    currentEmpDetailRecord = record;
+
     document.getElementById('empAttDetailTitle').textContent = `${record.className} — ${record.date}`;
+
+    const cls = myClasses.find(c => c._id === record.classId || c.name === record.className);
+    const nameMap = {};
+    if (cls && cls.students) {
+        cls.students.forEach(s => { nameMap[s.rollNumber] = s.name; });
+    }
+
+    const absentees = record.absentStudents || [];
+    const present = record.presentStudents || [];
 
     let html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
             <div>
-                <span class="chip chip-class">${record.subject || 'N/A'}</span>
+                <span class="chip chip-class">${record.subject || 'NSS'}</span>
                 <span class="chip chip-employee">Period ${record.period || 'N/A'}</span>
             </div>
-            <button class="btn-sm-action btn-sm-preset" onclick="copyEmpAttendance('${record._id}')">📋 Copy Absentees</button>
+            <button class="btn-sm-action btn-sm-preset" onclick="copyEmpAttendance(currentEmpDetailRecord)">📋 Copy Absentees</button>
         </div>
-        <div class="field-group"><label>Present (${record.presentStudents?.length || 0})</label></div>
-        <div class="att-detail-grid" style="margin-bottom:1rem">
-            ${(record.presentStudents || []).map(s => `<div class="att-detail-item att-present">✅ ${s}</div>`).join('')}
+        <div class="field-group">
+            <label style="color:var(--danger);font-weight:700">❌ Absentees (${absentees.length})</label>
         </div>
-        <div class="field-group"><label>Absent (${record.absentStudents?.length || 0})</label></div>
+        <div class="att-detail-grid" style="margin-bottom:1.5rem">
+            ${absentees.length > 0 
+                ? absentees.map(roll => `<div class="att-detail-item att-absent">❌ <strong>${roll}</strong>${nameMap[roll] ? ` - ${nameMap[roll]}` : ''}</div>`).join('')
+                : '<div style="color:var(--success);font-weight:600;padding:0.5rem">All students present! 🎉</div>'
+            }
+        </div>
+        <div class="field-group">
+            <label style="color:var(--success);font-weight:700">✅ Present (${present.length})</label>
+        </div>
         <div class="att-detail-grid">
-            ${(record.absentStudents || []).map(s => `<div class="att-detail-item att-absent">❌ ${s}</div>`).join('')}
+            ${present.length > 0
+                ? present.map(roll => `<div class="att-detail-item att-present">✅ <strong>${roll}</strong>${nameMap[roll] ? ` - ${nameMap[roll]}` : ''}</div>`).join('')
+                : '<div style="color:var(--danger);font-weight:600;padding:0.5rem">No present students</div>'
+            }
         </div>
     `;
     document.getElementById('empAttDetailBody').innerHTML = html;
     document.getElementById('empAttDetailModal').classList.add('active');
 }
 
-async function copyEmpAttendance(id) {
-    const record = employeeRecentRecords.find(r => r._id === id);
+async function copyEmpAttendance(recordOrId) {
+    let record = null;
+    if (typeof recordOrId === 'object' && recordOrId !== null) {
+        record = recordOrId;
+    } else {
+        record = employeeRecentRecords.find(r => r._id === recordOrId);
+    }
     if (!record) return showToast('Record not found', 'error');
 
     const cls = myClasses.find(c => c._id === record.classId || c.name === record.className);
@@ -1125,15 +1158,11 @@ document.getElementById('selectAllBtn').addEventListener('click', () => {
 });
 
 // Close modal
-document.getElementById('modalClose').addEventListener('click', closeModal);
-document.getElementById('btnCancelAtt').addEventListener('click', closeModal);
+document.getElementById('modalClose').addEventListener('click', () => closeModal('attendanceModal'));
+document.getElementById('btnCancelAtt').addEventListener('click', () => closeModal('attendanceModal'));
 document.getElementById('attendanceModal').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeModal();
+    if (e.target === e.currentTarget) closeModal('attendanceModal');
 });
-
-function closeModal() {
-    document.getElementById('attendanceModal').classList.remove('active');
-}
 
 // Submit
 document.getElementById('btnSubmitAtt').addEventListener('click', async () => {
@@ -1172,9 +1201,12 @@ document.getElementById('btnSubmitAtt').addEventListener('click', async () => {
         const data = await res.json();
         if (res.ok) {
             showToast('Attendance posted successfully!', 'success');
-            closeModal();
+            closeModal('attendanceModal');
             await loadMyClasses();
             await loadRecentActivity();
+            if (data.record) {
+                viewEmpAttDetail(data.record);
+            }
         } else {
             showToast(data.error || 'Failed to post', 'error');
         }
@@ -1187,8 +1219,9 @@ document.getElementById('btnSubmitAtt').addEventListener('click', async () => {
 });
 
 // ─── Helpers ───
-function closeModal(id) {
-    const el = document.getElementById(id);
+function closeModal(id = 'attendanceModal') {
+    const targetId = (typeof id === 'string' && id) ? id : 'attendanceModal';
+    const el = document.getElementById(targetId);
     if (el) el.classList.remove('active');
 }
 
