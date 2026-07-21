@@ -41,12 +41,20 @@ io.on('connection', (socket) => {
 
 // ─── MongoDB Connection ───
 const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/nss_attendance';
-mongoose.connect(mongoURI)
+mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 5000 })
     .then(async () => {
-        console.log('[DB] Connected to MongoDB');
+        console.log('[DB] Connected to MongoDB successfully');
         await seedDatabase();
     })
-    .catch(err => console.error('[DB] Connection error:', err));
+    .catch(err => {
+        console.error('[DB Error] Failed to connect to MongoDB:', err.message);
+        console.error('[DB Error] If deployed on Render, check:');
+        console.error('  1. MONGO_URI is set in Render Environment Variables');
+        console.error('  2. MongoDB Atlas Network Access permits 0.0.0.0/0 (Allow Access from Anywhere)');
+    });
+
+mongoose.connection.on('error', err => console.error('[DB Error]', err.message));
+mongoose.connection.on('disconnected', () => console.warn('[DB Warning] MongoDB disconnected'));
 
 // ─── Seed Default Data ───
 async function seedDatabase() {
@@ -141,12 +149,39 @@ function requireAdmin(req, res, next) {
 // ─── Routes ───
 
 // Root
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
+// ─── Health Check ───
+app.get('/api/health', (req, res) => {
+    const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+    const dbState = mongoose.connection.readyState;
+    const isDbConnected = dbState === 1;
+
+    res.status(isDbConnected ? 200 : 503).json({
+        status: isDbConnected ? 'OK' : 'DEGRADED',
+        database: {
+            state: states[dbState] || 'unknown',
+            code: dbState,
+            connected: isDbConnected
+        },
+        env: {
+            hasMongoURI: !!process.env.MONGO_URI,
+            hasJwtSecret: !!process.env.JWT_SECRET
+        },
+        uptime: process.uptime()
+    });
+});
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // AUTH
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 app.post('/api/login', async (req, res) => {
+    // Check if database is connected before processing
+    if (mongoose.connection.readyState !== 1) {
+        console.error('[Login Error] Attempted login while MongoDB is not connected.');
+        return res.status(503).json({
+            error: 'Database not connected. Please ensure MONGO_URI is configured in Render environment variables and MongoDB Atlas IP access includes 0.0.0.0/0.'
+        });
+    }
+
     const { username, password } = req.body;
     const inputUser = (username || '').toLowerCase().trim();
     const inputPass = (password || '').trim();
@@ -167,7 +202,7 @@ app.post('/api/login', async (req, res) => {
         });
     } catch (err) {
         console.error('[Login Error]', err);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: 'Server error: ' + (err.message || 'Unknown error') });
     }
 });
 
