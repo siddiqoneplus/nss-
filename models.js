@@ -97,7 +97,27 @@ const overrideSchema = new mongoose.Schema({
     createdBy: { type: String, required: true },
     createdAt: { type: Date, default: Date.now }
 });
-overrideSchema.index({ date: 1, classId: 1 });
+// ─── Attendance Correction Request Schema ───
+const correctionRequestSchema = new mongoose.Schema({
+    attendanceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Attendance', required: true },
+    submittedBy: { type: String, required: true },               // Employee username
+    className: { type: String, required: true },
+    date: { type: String, required: true },                      // YYYY-MM-DD
+    period: { type: Number, default: 0 },
+    subject: { type: String, default: 'NSS' },
+    originalPresent: [String],
+    originalAbsent: [String],
+    proposedPresent: [String],
+    proposedAbsent: [String],
+    reason: { type: String, required: true },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    adminNote: { type: String, default: '' },
+    actionedBy: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now }
+});
+correctionRequestSchema.index({ attendanceId: 1 });
+correctionRequestSchema.index({ submittedBy: 1, status: 1 });
+correctionRequestSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = {
     User: mongoose.model('User', userSchema),
@@ -106,5 +126,6 @@ module.exports = {
     Semester: mongoose.model('Semester', semesterSchema),
     Timetable: mongoose.model('Timetable', timetableSchema),
     Alert: mongoose.model('Alert', alertSchema),
-    TimetableOverride: mongoose.model('TimetableOverride', overrideSchema)
+    TimetableOverride: mongoose.model('TimetableOverride', overrideSchema),
+    CorrectionRequest: mongoose.model('CorrectionRequest', correctionRequestSchema)
 };

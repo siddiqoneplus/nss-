@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.JWT_SECRET || 'nss_default_secret';
 
 // Models
-const { User, ClassSection, Attendance, Semester, Timetable, Alert, TimetableOverride } = require('./models');
+const { User, ClassSection, Attendance, Semester, Timetable, Alert, TimetableOverride, CorrectionRequest } = require('./models');
 
 // Middleware
 app.use(compression());
@@ -527,6 +527,105 @@ app.patch('/api/attendance/:id', authenticateToken, requireAdmin, async (req, re
         res.json({ message: 'Attendance updated', record });
     } catch (err) {
         res.status(500).json({ error: 'Failed to update record' });
+    }
+});
+
+// Submit Attendance Correction Request (Employee)
+app.post('/api/attendance/correction-request', authenticateToken, async (req, res) => {
+    const { attendanceId, reason, proposedPresentStudents, proposedAbsentStudents } = req.body;
+    if (!attendanceId || !reason) {
+        return res.status(400).json({ error: 'Attendance ID and reason are required' });
+    }
+
+    try {
+        const att = await Attendance.findById(attendanceId);
+        if (!att) return res.status(404).json({ error: 'Attendance record not found' });
+
+        if (req.user.role !== 'admin' && att.submittedBy !== req.user.username) {
+            return res.status(403).json({ error: 'You can only request corrections for your own posted attendance' });
+        }
+
+        const existingPending = await CorrectionRequest.findOne({ attendanceId, status: 'pending' });
+        if (existingPending) {
+            return res.status(409).json({ error: 'A correction request is already pending for this attendance record' });
+        }
+
+        const reqObj = await CorrectionRequest.create({
+            attendanceId: att._id,
+            submittedBy: req.user.username,
+            className: att.className,
+            date: att.date,
+            period: att.period,
+            subject: att.subject || 'NSS',
+            originalPresent: att.presentStudents || [],
+            originalAbsent: att.absentStudents || [],
+            proposedPresent: proposedPresentStudents || [],
+            proposedAbsent: proposedAbsentStudents || [],
+            reason: reason.trim()
+        });
+
+        io.emit('correction_requested', reqObj);
+        res.status(201).json({ message: 'Correction request submitted successfully', request: reqObj });
+    } catch (err) {
+        console.error('[Correction Request Error]', err);
+        res.status(500).json({ error: 'Failed to submit correction request' });
+    }
+});
+
+// Get Attendance Correction Requests
+app.get('/api/attendance/correction-requests', authenticateToken, async (req, res) => {
+    try {
+        const filter = {};
+        if (req.user.role !== 'admin') {
+            filter.submittedBy = req.user.username;
+        } else if (req.query.status) {
+            filter.status = req.query.status;
+        }
+
+        const requests = await CorrectionRequest.find(filter).sort({ createdAt: -1 });
+        res.json({ requests });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch correction requests' });
+    }
+});
+
+// Admin: Action (Approve / Reject) Correction Request
+app.patch('/api/attendance/correction-request/:id/action', authenticateToken, requireAdmin, async (req, res) => {
+    const { action, adminNote } = req.body;
+    if (!['approve', 'reject'].includes(action)) {
+        return res.status(400).json({ error: 'Action must be approve or reject' });
+    }
+
+    try {
+        const cr = await CorrectionRequest.findById(req.params.id);
+        if (!cr) return res.status(404).json({ error: 'Correction request not found' });
+
+        if (cr.status !== 'pending') {
+            return res.status(400).json({ error: `Request has already been ${cr.status}` });
+        }
+
+        if (action === 'approve') {
+            const att = await Attendance.findById(cr.attendanceId);
+            if (att) {
+                att.presentStudents = cr.proposedPresent;
+                att.absentStudents = cr.proposedAbsent;
+                att.totalStudents = cr.proposedPresent.length + cr.proposedAbsent.length;
+                await att.save();
+            }
+            cr.status = 'approved';
+        } else {
+            cr.status = 'rejected';
+        }
+
+        cr.adminNote = adminNote || '';
+        cr.actionedBy = req.user.username;
+        await cr.save();
+
+        io.emit('correction_actioned', cr);
+        res.json({ message: `Correction request ${cr.status}`, request: cr });
+    } catch (err) {
+        console.error('[Action Correction Error]', err);
+        res.status(500).json({ error: 'Failed to process correction request' });
     }
 });
 

@@ -797,6 +797,33 @@
     </div>
 </div>
 
+<!-- Request Attendance Correction Modal (Employee) -->
+<div class="modal-overlay" id="correctionModal">
+    <div class="modal" style="max-width:550px">
+        <div class="modal-header">
+            <h3 id="correctionModalTitle">Request Attendance Correction</h3>
+            <button class="modal-close" onclick="closeModal('correctionModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="text-dim" style="font-size:0.88rem;margin-bottom:1rem">
+                Click students below to toggle between Present and Absent, then enter a reason for Admin approval.
+            </p>
+            <div class="field-group">
+                <label>Student Roster Status (Click to Toggle)</label>
+                <div class="student-list" id="correctionStudentList" style="max-height:220px;overflow-y:auto;margin-top:0.5rem"></div>
+            </div>
+            <div class="field-group" style="margin-top:1rem">
+                <label for="correctionReason">Reason for Correction <span style="color:var(--danger)">*</span></label>
+                <textarea id="correctionReason" class="field-input" rows="3" placeholder="Explain why attendance needs correction (e.g. Marked Roll 104 absent by mistake)..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer modal-footer-space">
+            <button class="btn-cancel" onclick="closeModal('correctionModal')">Cancel</button>
+            <button class="btn-submit" id="btnSubmitCorrection" onclick="submitCorrectionRequest()">Submit Request</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -819,6 +846,7 @@ socket.on('attendance_posted', () => loadMyClasses());
 socket.on('attendance_deleted', () => loadMyClasses());
 socket.on('new_alert', () => loadEmployeeAlerts());
 socket.on('alert_dismissed', () => loadEmployeeAlerts());
+socket.on('correction_actioned', () => { loadRecentActivity(); loadMyClasses(); });
 
 // ─── Init ───
 document.addEventListener('DOMContentLoaded', async () => {
@@ -895,12 +923,18 @@ async function loadMyClasses() {
 }
 
 let employeeRecentRecords = [];
+let userCorrectionRequests = [];
 
 async function loadRecentActivity() {
     try {
-        const res = await fetch('/api/attendance?page=1&limit=10', { headers: headers() });
-        const data = await res.json();
+        const [attRes, crRes] = await Promise.all([
+            fetch('/api/attendance?page=1&limit=10', { headers: headers() }),
+            fetch('/api/attendance/correction-requests', { headers: headers() })
+        ]);
+        const data = await attRes.json();
+        const crData = await crRes.json();
         employeeRecentRecords = (data.records || []).filter(r => r.submittedBy === USERNAME);
+        userCorrectionRequests = crData.requests || [];
 
         const list = document.getElementById('activityList');
         if (employeeRecentRecords.length === 0) {
@@ -908,10 +942,19 @@ async function loadRecentActivity() {
             return;
         }
 
-        list.innerHTML = employeeRecentRecords.map((r, i) => `
+        list.innerHTML = employeeRecentRecords.map((r, i) => {
+            const cr = userCorrectionRequests.find(req => req.attendanceId === r._id);
+            let crStatusBadge = '';
+            if (cr) {
+                if (cr.status === 'pending') crStatusBadge = `<span class="status-chip pending" style="font-size:0.75rem;padding:0.2rem 0.5rem">⏳ Correction Pending</span>`;
+                else if (cr.status === 'approved') crStatusBadge = `<span class="status-chip posted" style="font-size:0.75rem;padding:0.2rem 0.5rem">✅ Correction Approved</span>`;
+                else if (cr.status === 'rejected') crStatusBadge = `<span class="status-chip" style="font-size:0.75rem;padding:0.2rem 0.5rem;background:rgba(239,68,68,0.15);color:#fca5a5">❌ Correction Rejected</span>`;
+            }
+
+            return `
             <div class="activity-item" style="animation-delay:${i * 0.06}s">
                 <div class="info">
-                    <div class="title">${r.className}${r.subject ? ' — ' + r.subject : ''}</div>
+                    <div class="title">${r.className}${r.subject ? ' — ' + r.subject : ''} ${crStatusBadge}</div>
                     <div class="meta">${r.date} · Period ${r.period || 'N/A'}</div>
                 </div>
                 <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
@@ -919,8 +962,8 @@ async function loadRecentActivity() {
                     <button class="btn-sm-action" onclick="viewEmpAttDetail('${r._id}')">👁️ View</button>
                     <button class="btn-sm-action btn-sm-preset" onclick="copyEmpAttendance('${r._id}')">📋 Copy</button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     } catch (err) {
         console.error('Load activity error:', err);
     }
@@ -949,14 +992,33 @@ async function viewEmpAttDetail(recordOrId) {
 
     const absentees = record.absentStudents || [];
     const present = record.presentStudents || [];
+    const cr = userCorrectionRequests.find(req => req.attendanceId === record._id);
+
+    let crBanner = '';
+    let actionBtn = `<button class="btn-sm-action" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)" onclick="openCorrectionModal(currentEmpDetailRecord)">✏️ Request Correction</button>`;
+
+    if (cr) {
+        if (cr.status === 'pending') {
+            crBanner = `<div class="warning-banner" style="margin-bottom:1rem"><span>⏳</span><span>Correction request pending admin review: "<em>${cr.reason}</em>"</span></div>`;
+            actionBtn = `<span class="status-chip pending">⏳ Correction Pending</span>`;
+        } else if (cr.status === 'approved') {
+            crBanner = `<div class="success-banner" style="margin-bottom:1rem"><span>✅</span><span>Correction request was approved by admin${cr.adminNote ? ': ' + cr.adminNote : '.'}</span></div>`;
+        } else if (cr.status === 'rejected') {
+            crBanner = `<div class="warning-banner" style="margin-bottom:1rem"><span>❌</span><span>Correction request rejected${cr.adminNote ? ': ' + cr.adminNote : '.'}</span></div>`;
+        }
+    }
 
     let html = `
+        ${crBanner}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
             <div>
                 <span class="chip chip-class">${record.subject || 'NSS'}</span>
                 <span class="chip chip-employee">Period ${record.period || 'N/A'}</span>
             </div>
-            <button class="btn-sm-action btn-sm-preset" onclick="copyEmpAttendance(currentEmpDetailRecord)">📋 Copy Absentees</button>
+            <div style="display:flex;gap:0.4rem;align-items:center">
+                ${actionBtn}
+                <button class="btn-sm-action btn-sm-preset" onclick="copyEmpAttendance(currentEmpDetailRecord)">📋 Copy Absentees</button>
+            </div>
         </div>
         <div class="field-group">
             <label style="color:var(--danger);font-weight:700">❌ Absentees (${absentees.length})</label>
@@ -979,6 +1041,103 @@ async function viewEmpAttDetail(recordOrId) {
     `;
     document.getElementById('empAttDetailBody').innerHTML = html;
     document.getElementById('empAttDetailModal').classList.add('active');
+}
+
+let currentCorrectionRecord = null;
+let correctionStudentMap = {};
+
+function openCorrectionModal(record) {
+    if (!record) return showToast('Record not found', 'error');
+    currentCorrectionRecord = record;
+
+    document.getElementById('correctionModalTitle').textContent = `Request Correction — ${record.className} (${record.date})`;
+    document.getElementById('correctionReason').value = '';
+
+    const cls = myClasses.find(c => c._id === record.classId || c.name === record.className);
+    const nameMap = {};
+    if (cls && cls.students) {
+        cls.students.forEach(s => { nameMap[s.rollNumber] = s.name; });
+    }
+
+    const presentSet = new Set(record.presentStudents || []);
+    const allRolls = [...new Set([...(record.presentStudents || []), ...(record.absentStudents || [])])];
+
+    correctionStudentMap = {};
+    allRolls.forEach(roll => {
+        correctionStudentMap[roll] = presentSet.has(roll);
+    });
+
+    renderCorrectionStudentList(nameMap);
+    closeModal('empAttDetailModal');
+    document.getElementById('correctionModal').classList.add('active');
+}
+
+function renderCorrectionStudentList(nameMap = {}) {
+    const list = document.getElementById('correctionStudentList');
+    const rolls = Object.keys(correctionStudentMap);
+    if (rolls.length === 0) {
+        list.innerHTML = `<p class="text-dim" style="padding:0.5rem">No student records found</p>`;
+        return;
+    }
+
+    list.innerHTML = rolls.map(roll => {
+        const isPresent = correctionStudentMap[roll];
+        return `
+            <div class="att-detail-item ${isPresent ? 'att-present' : 'att-absent'}" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0.8rem;margin-bottom:0.3rem;border-radius:6px" onclick="toggleCorrectionStudent('${roll}')">
+                <span>${isPresent ? '✅' : '❌'} <strong>${roll}</strong>${nameMap[roll] ? ` (${nameMap[roll]})` : ''}</span>
+                <span style="font-weight:700;font-size:0.78rem">${isPresent ? 'PRESENT' : 'ABSENT'}</span>
+            </div>`;
+    }).join('');
+}
+
+function toggleCorrectionStudent(roll) {
+    if (correctionStudentMap[roll] !== undefined) {
+        correctionStudentMap[roll] = !correctionStudentMap[roll];
+        renderCorrectionStudentList();
+    }
+}
+
+async function submitCorrectionRequest() {
+    if (!currentCorrectionRecord) return;
+    const reason = document.getElementById('correctionReason').value.trim();
+    if (!reason) return showToast('Please enter a reason for the correction request', 'error');
+
+    const proposedPresent = [];
+    const proposedAbsent = [];
+    Object.keys(correctionStudentMap).forEach(roll => {
+        if (correctionStudentMap[roll]) proposedPresent.push(roll);
+        else proposedAbsent.push(roll);
+    });
+
+    const btn = document.getElementById('btnSubmitCorrection');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    try {
+        const res = await fetch('/api/attendance/correction-request', {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify({
+                attendanceId: currentCorrectionRecord._id,
+                reason,
+                proposedPresentStudents: proposedPresent,
+                proposedAbsentStudents: proposedAbsent
+            })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast('Correction request submitted to admin!', 'success');
+            closeModal('correctionModal');
+            await loadRecentActivity();
+        } else {
+            showToast(data.error || 'Failed to submit correction request', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit Request';
+    }
 }
 
 async function copyEmpAttendance(recordOrId) {

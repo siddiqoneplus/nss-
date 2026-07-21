@@ -968,6 +968,7 @@
         <button class="nav-item" data-tab="attendance"><span class="icon">📝</span>Attendance</button>
         <button class="nav-item" data-tab="reports"><span class="icon">📈</span>Reports</button>
         <button class="nav-item" data-tab="alerts"><span class="icon">🔔</span>Alerts</button>
+        <button class="nav-item" data-tab="corrections"><span class="icon">✏️</span>Corrections <span class="badge hidden" id="pendingCorrectionsBadge" style="margin-left:auto;background:var(--accent);color:#fff;border-radius:10px;padding:0.15rem 0.5rem;font-size:0.75rem">0</span></button>
     </nav>
     <div class="sidebar-footer">
         <button class="btn-logout" id="logoutBtn">🚪 Logout</button>
@@ -1242,6 +1243,26 @@
         </div>
     </div>
 
+    <!-- ═══ CORRECTION REQUESTS TAB ═══ -->
+    <div class="tab-panel" id="tab-corrections">
+        <div class="table-card">
+            <div class="table-header">
+                <h3>Attendance Correction Requests</h3>
+                <div style="display:flex;gap:0.5rem">
+                    <select id="correctionFilter" class="field-select" style="padding:0.3rem 0.6rem;font-size:0.85rem" onchange="loadCorrectionRequests()">
+                        <option value="pending">⏳ Pending Only</option>
+                        <option value="approved">✅ Approved</option>
+                        <option value="rejected">❌ Rejected</option>
+                        <option value="">📋 All Requests</option>
+                    </select>
+                </div>
+            </div>
+            <div id="correctionRequestsList" class="container-padding-sm">
+                <p class="text-empty-state">No correction requests found</p>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <!-- ═══ CLASS MODAL ═══ -->
@@ -1486,6 +1507,8 @@ const socket = io();
 socket.emit('register', USERNAME);
 socket.on('attendance_posted', () => { loadDashboard(); loadAttendance(); });
 socket.on('attendance_deleted', () => { loadDashboard(); loadAttendance(); });
+socket.on('correction_requested', () => { loadPendingCorrectionsCount(); loadCorrectionRequests(); });
+socket.on('correction_actioned', () => { loadPendingCorrectionsCount(); loadCorrectionRequests(); loadAttendance(); loadDashboard(); });
 
 // ─── Data cache ───
 let allClasses = [];
@@ -1541,6 +1564,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     loadDashboard();
+    loadPendingCorrectionsCount();
 });
 
 function onTabChange(tab) {
@@ -1551,6 +1575,7 @@ function onTabChange(tab) {
     if (tab === 'attendance') loadAttendance();
     if (tab === 'reports') initReports();
     if (tab === 'alerts') loadAlerts();
+    if (tab === 'corrections') loadCorrectionRequests();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2796,6 +2821,123 @@ function getTimeAgo(dateStr) {
     const days = Math.floor(hrs / 24);
     if (days < 7) return `${days}d ago`;
     return new Date(dateStr).toLocaleDateString();
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CORRECTION REQUESTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let currentCorrectionRequests = [];
+
+async function loadPendingCorrectionsCount() {
+    try {
+        const res = await fetch('/api/attendance/correction-requests?status=pending', { headers: headers() });
+        const data = await res.json();
+        const count = (data.requests || []).length;
+        const badge = document.getElementById('pendingCorrectionsBadge');
+        if (badge) {
+            badge.textContent = count;
+            if (count > 0) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+        }
+    } catch (err) {
+        console.error('Pending count error:', err);
+    }
+}
+
+async function loadCorrectionRequests() {
+    try {
+        const filterStatus = document.getElementById('correctionFilter')?.value || '';
+        const url = filterStatus 
+            ? `/api/attendance/correction-requests?status=${filterStatus}`
+            : '/api/attendance/correction-requests';
+
+        const res = await fetch(url, { headers: headers() });
+        const data = await res.json();
+        currentCorrectionRequests = data.requests || [];
+
+        const list = document.getElementById('correctionRequestsList');
+        if (currentCorrectionRequests.length === 0) {
+            list.innerHTML = `<div class="card-padding-lg"><p class="text-empty-state">No correction requests found</p></div>`;
+            return;
+        }
+
+        list.innerHTML = currentCorrectionRequests.map(cr => {
+            const origPres = new Set(cr.originalPresent || []);
+            const origAbs = new Set(cr.originalAbsent || []);
+            const propPres = new Set(cr.proposedPresent || []);
+            const propAbs = new Set(cr.proposedAbsent || []);
+
+            const becamePresent = [...propPres].filter(x => origAbs.has(x));
+            const becameAbsent = [...propAbs].filter(x => origPres.has(x));
+
+            let statusChip = '<span class="chip chip-class" style="background:rgba(245,158,11,0.2);color:#fbbf24">⏳ Pending</span>';
+            if (cr.status === 'approved') statusChip = '<span class="chip chip-class" style="background:var(--success-bg);color:var(--success)">✅ Approved</span>';
+            if (cr.status === 'rejected') statusChip = '<span class="chip chip-class" style="background:var(--danger-bg);color:var(--danger)">❌ Rejected</span>';
+
+            return `
+                <div class="table-card mt-sm" style="border:1px solid var(--glass-border);padding:1rem;margin-bottom:0.75rem">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem">
+                        <div>
+                            <h4 style="margin:0;font-size:1.05rem">${cr.className} — ${cr.date} (Period ${cr.period || 'N/A'})</h4>
+                            <div style="font-size:0.82rem;color:var(--text-muted);margin-top:0.2rem">
+                                Submitted by: <strong>${cr.submittedBy}</strong> · ${getTimeAgo(cr.createdAt)}
+                            </div>
+                        </div>
+                        <div>${statusChip}</div>
+                    </div>
+
+                    <div style="margin-top:0.8rem;background:rgba(0,0,0,0.2);padding:0.75rem;border-radius:8px">
+                        <div style="font-weight:600;font-size:0.88rem;color:var(--text);margin-bottom:0.4rem">💬 Reason for Request:</div>
+                        <div style="font-size:0.9rem;color:var(--text-muted)">"${cr.reason}"</div>
+                    </div>
+
+                    <div style="margin-top:0.8rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.75rem">
+                        <div style="background:rgba(239,68,68,0.1);padding:0.6rem;border-radius:6px">
+                            <div style="font-size:0.78rem;font-weight:700;color:var(--danger)">CHANGING TO ABSENT (${becameAbsent.length}):</div>
+                            <div style="font-size:0.85rem;margin-top:0.2rem">${becameAbsent.length > 0 ? becameAbsent.map(r => `❌ ${r}`).join(', ') : 'None'}</div>
+                        </div>
+                        <div style="background:rgba(34,197,94,0.1);padding:0.6rem;border-radius:6px">
+                            <div style="font-size:0.78rem;font-weight:700;color:var(--success)">CHANGING TO PRESENT (${becamePresent.length}):</div>
+                            <div style="font-size:0.85rem;margin-top:0.2rem">${becamePresent.length > 0 ? becamePresent.map(r => `✅ ${r}`).join(', ') : 'None'}</div>
+                        </div>
+                    </div>
+
+                    ${cr.status === 'pending' ? `
+                        <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:0.5rem">
+                            <button class="btn-sm" style="background:var(--danger);color:#fff" onclick="promptActionCorrection('${cr._id}', 'reject')">❌ Reject</button>
+                            <button class="btn-sm" style="background:var(--success);color:#fff" onclick="promptActionCorrection('${cr._id}', 'approve')">✅ Approve Correction</button>
+                        </div>
+                    ` : `
+                        ${cr.adminNote ? `<div style="font-size:0.82rem;color:var(--text-muted);margin-top:0.6rem">Admin Note: "${cr.adminNote}" (by ${cr.actionedBy || 'Admin'})</div>` : ''}
+                    `}
+                </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Load correction requests error:', err);
+    }
+}
+
+async function promptActionCorrection(id, action) {
+    const note = prompt(`Enter optional note for ${action.toUpperCase()}:`, '');
+    if (note === null) return;
+
+    try {
+        const res = await fetch(`/api/attendance/correction-request/${id}/action`, {
+            method: 'PATCH',
+            headers: headers(),
+            body: JSON.stringify({ action, adminNote: note })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`Correction request ${action}d!`, 'success');
+            await loadPendingCorrectionsCount();
+            await loadCorrectionRequests();
+        } else {
+            showToast(data.error || 'Failed to process request', 'error');
+        }
+    } catch (err) {
+        showToast('Server error', 'error');
+    }
 }
 </script>
 </body>
