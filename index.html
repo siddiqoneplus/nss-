@@ -775,12 +775,9 @@
                 </div>
             </div>
         </div>
-        <div class="modal-footer modal-footer-space">
-            <button class="btn-sm-action btn-sm-preset" id="btnCopyLiveAtt" onclick="copyCurrentModalAbsentees()">📋 Copy Absentees</button>
-            <div class="modal-footer-actions">
-                <button class="btn-cancel" id="btnCancelAtt" onclick="closeModal('attendanceModal')">Cancel</button>
-                <button class="btn-submit" id="btnSubmitAtt" disabled>Submit Attendance</button>
-            </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="btnCancelAtt" onclick="closeModal('attendanceModal')">Cancel</button>
+            <button class="btn-submit" id="btnSubmitAtt" disabled>Submit Attendance</button>
         </div>
     </div>
 </div>
@@ -884,10 +881,9 @@ async function loadMyClasses() {
                         <span>🏫 ${cls.department || '—'}</span>
                         <span>📚 Year ${cls.year || '?'} — Sec ${cls.section || '?'}</span>
                     </div>
-                    <div class="status-row" style="display:flex;justify-content:space-between;align-items:center">
+                    <div class="status-row">
                         ${isPosted
-                            ? `<span class="status-chip posted">✅ Posted (${posted.length} record${posted.length>1?'s':''})</span>
-                               <button class="btn-sm-action btn-sm-preset" style="padding:0.25rem 0.6rem;font-size:0.75rem" onclick="event.stopPropagation(); copyTodayClassAttendance('${cls._id}')">📋 Copy</button>`
+                            ? `<span class="status-chip posted">✅ Posted (${posted.length} record${posted.length>1?'s':''})</span>`
                             : `<span class="status-chip pending">⏳ Pending</span>`
                         }
                     </div>
@@ -1020,60 +1016,6 @@ ${absenteesFormatted}`;
     } catch (err) {
         console.error('Copy error:', err);
         showToast('Failed to copy to clipboard', 'error');
-    }
-}
-
-function copyCurrentModalAbsentees() {
-    const cls = myClasses.find(c => c._id === currentClassId);
-    const className = cls ? cls.name : 'Class';
-    const date = document.getElementById('attDate').value || todayStr();
-    const period = document.getElementById('attPeriodSelect').value || 'N/A';
-
-    const checks = document.querySelectorAll('#studentList input[type="checkbox"]');
-    if (checks.length === 0) {
-        return showToast('Select date & period first to view students', 'error');
-    }
-
-    const absentRolls = [];
-    const nameMap = {};
-    if (currentClassStudents) {
-        currentClassStudents.forEach(s => { nameMap[s.rollNumber] = s.name; });
-    }
-    checks.forEach(c => {
-        if (!c.checked) absentRolls.push(c.dataset.roll);
-    });
-
-    const total = checks.length;
-    const presentCount = total - absentRolls.length;
-
-    const absenteesFormatted = absentRolls.length > 0
-        ? absentRolls.map((roll, i) => `${i + 1}. ${roll}${nameMap[roll] ? ` (${nameMap[roll]})` : ''}`).join('\n')
-        : 'None (100% Present 🎉)';
-
-    const textToCopy = `📋 NSS Attendance - ${className}
-Date: ${date}
-Subject: NSS | Period: ${period}
-Present: ${presentCount}/${total}
-Absentees Count: ${absentRolls.length}
-
-❌ ${className} Absentees List (${date}):
-${absenteesFormatted}`;
-
-    navigator.clipboard.writeText(textToCopy)
-        .then(() => showToast(`Copied ${className} absentees!`, 'success'))
-        .catch(() => showToast('Failed to copy to clipboard', 'error'));
-}
-
-async function copyTodayClassAttendance(classId) {
-    try {
-        const date = todayStr();
-        const res = await fetch(`/api/attendance?classId=${classId}&date=${date}`, { headers: headers() });
-        const data = await res.json();
-        const records = data.records || [];
-        if (records.length === 0) return showToast('No attendance records found for today', 'error');
-        copyEmpAttendance(records[0]);
-    } catch (err) {
-        showToast('Failed to copy attendance', 'error');
     }
 }
 
